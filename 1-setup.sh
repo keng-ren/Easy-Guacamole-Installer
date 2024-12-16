@@ -73,7 +73,7 @@ source /etc/os-release
 #######################################################################################################################
 
 # GitHub download branch
-GITHUB="https://raw.githubusercontent.com/itiligent/Guacamole-Install/main"
+GITHUB="https://raw.githubusercontent.com/keng-ren/Easy-Guacamole-Installer/unattended"
 
 # Version of Guacamole to install
 GUAC_VERSION="1.5.5"
