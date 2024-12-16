@@ -146,6 +146,11 @@ RDP_SHARE_LABEL="RDP Share"     # Custom RDP shared drive name in Windows Explor
 RDP_PRINTER_LABEL="RDP Printer" # Custom RDP printer name shown in Windows
 CRON_DENY_FILE="/etc/cron.deny" # Distro's cron deny file
 
+# Pull in variables from dotenv file
+if [[ -f ".env" ]]; then
+    set -a; source .env; set +a
+fi
+
 #######################################################################################################################
 # Download GitHub setup scripts. BEFORE RUNNING SETUP, COMMENT OUT DOWNLOAD LINES OF ANY SCRIPTS YOU HAVE EDITED ! ####
 #######################################################################################################################
