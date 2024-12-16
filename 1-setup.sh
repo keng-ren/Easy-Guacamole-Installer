@@ -109,6 +109,7 @@ CERT_DAYS="3650"                # Self signed cert setup, days until self signed
 LETS_ENCRYPT="false"            # Add Lets Encrypt public TLS cert for Nginx (true/false, self signed TLS not available with this option)
 LE_DNS_NAME=""                  # Public DNS name for use with Lets Encrypt certificates, must match public DNS
 LE_EMAIL=""                     # Webmaster email for Lets Encrypt notifications
+STEPCA=""                       # Add step-ca certificates
 BACKUP_EMAIL=""                 # Email address to send MySQL backup notifications to
 BACKUP_RETENTION="30"           # Days to keep SQL backups locally
 RDP_SHARE_HOST=""               # Custom RDP host name shown in Windows Explorer (eg. "RDP_SHARE_LABEL on RDP_SHARE_HOST"). Blank "" = $SERVER_NAME
@@ -161,6 +162,7 @@ wget -q ${GITHUB}/2-install-guacamole.sh -O 2-install-guacamole.sh &>>${INSTALL_
 wget -q ${GITHUB}/3-install-nginx.sh -O 3-install-nginx.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/4a-install-tls-self-signed-nginx.sh -O 4a-install-tls-self-signed-nginx.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx.sh -O 4b-install-tls-letsencrypt-nginx.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/4c-install-tls-smallstep-nginx.sh -O 4c-install-tls-smallstep-nginx.sh &>>${INSTALL_LOG}
 
 # Download the suite of optional feature adding scripts
 wget -q ${GITHUB}/guac-optional-features/add-auth-duo.sh -O add-auth-duo.sh &>>${INSTALL_LOG}
@@ -529,6 +531,20 @@ sed -i "s|LE_DNS_NAME=|LE_DNS_NAME='${LE_DNS_NAME}'|g" $DOWNLOAD_DIR/4b-install-
 sed -i "s|LE_EMAIL=|LE_EMAIL='${LE_EMAIL}'|g" $DOWNLOAD_DIR/4b-install-tls-letsencrypt-nginx.sh
 sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" $DOWNLOAD_DIR/4b-install-tls-letsencrypt-nginx.sh
 
+smallstep_fname="4c-install-tls-smallstep-nginx"
+if [[ ${#all_domains[@]} -gt 0 ]]; then
+    for i in ${!all_domains[@]}; do
+        dom=${all_domains[$i]}
+        config_file="${DOWNLOAD_DIR}/${smallstep_fname}-${i}.sh"
+        echo "Creating Smallstep setup file '${config_file}' for domain '${dom}'" &>>${INSTALL_LOG}
+        cp -f "${DOWNLOAD_DIR}/${smallstep_fname}.sh" "${config_file}"
+        sed -i "s|PROXY_SITE=|PROXY_SITE='${SERVER_NAME}.${dom}'|g" "${config_file}"
+    done
+else
+    echo "Writing proxy URL '${PROXY_SITE}' to Smallstep setup file" &>>${INSTALL_LOG}
+    sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" "${DOWNLOAD_DIR}/${smallstep_fname}.sh"
+fi
+
 sed -i "s|LOCAL_DOMAIN=|LOCAL_DOMAIN='${LOCAL_DOMAIN}'|g" $DOWNLOAD_DIR/add-smtp-relay-o365.sh
 if [[ $? -ne 0 ]]; then
     echo "Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
@@ -667,6 +683,20 @@ if [[ "${INSTALL_NGINX}" = true ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SE
     echo "Let's Encrypt TLS configured for Nginx \nhttps://${LE_DNS_NAME}  - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***"
 fi
 
+# Apply Smallstep TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
+if [[ "${INSTALL_NGINX}" = true ]] && [[ "${STEPCA}" = true ]]; then
+    if [[ ${#all_domains[@]} -gt 0 ]]; then
+        for i in ${!all_domains[@]}; do
+            "./${smallstep_fname}-${i}.sh"
+            dom=${all_domains[$i]}
+            echo "Smallstep TLS configured for Nginx \nhttps://${SERVER_NAME}.${dom}" &>>${INSTALL_LOG}
+        done
+    else
+        "./${smallstep_fname}.sh"
+        echo "Smallstep TLS configured for Nginx \nhttps://${PROXY_SITE}" &>>${INSTALL_LOG}
+    fi
+fi
+
 # Duo Settings reminder - If Duo is selected you can't login to Guacamole until this extension is fully configured
 if [[ $INSTALL_DUO == "true" ]]; then
     echo
@@ -683,9 +713,8 @@ fi
 
 # OpenID Connect Settings reminder, LDAP auth is not functional until the config is complete
 if [[ $INSTALL_OPENID == "true" ]]; then
-    echo
-    echo -e "${LYELLOW}Reminder: OpenID Connect requires that your OpenID Connect identity provider configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before OpenID Connect auth will be active."
-    echo -e "See https://guacamole.apache.org/doc/gug/openid-auth.html"
+    echo "Reminder: If you did not specify all of the OpenID Connect parameters, you must configure the /etc/guacamole/guacamole.properties file before OpenID Connect auth will be active." &>>${INSTALL_LOG}
+    echo "See https://guacamole.apache.org/doc/gug/openid-auth.html" &>>${INSTALL_LOG}
 fi
 
 # Tidy up
