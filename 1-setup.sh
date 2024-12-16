@@ -157,10 +157,10 @@ echo "Guacamole ${GUAC_VERSION} Auto Installer - Powered by Itiligent - Unattend
 # Download the suite of install scripts from GitHub
 cd $DOWNLOAD_DIR
 echo "Downloading the Guacamole build suite..." &>>${INSTALL_LOG}
-wget -q ${GITHUB}/2-install-guacamole-unattended.sh -O 2-install-guacamole-unattended.sh &>>${INSTALL_LOG}
-wget -q ${GITHUB}/3-install-nginx-unattended.sh -O 3-install-nginx-unattended.sh &>>${INSTALL_LOG}
-wget -q ${GITHUB}/4a-install-tls-self-signed-nginx-unattended.sh -O 4a-install-tls-self-signed-nginx-unattended.sh &>>${INSTALL_LOG}
-wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx-unattended.sh -O 4b-install-tls-letsencrypt-nginx-unattended.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/2-install-guacamole.sh -O 2-install-guacamole.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/3-install-nginx.sh -O 3-install-nginx.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/4a-install-tls-self-signed-nginx.sh -O 4a-install-tls-self-signed-nginx.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx.sh -O 4b-install-tls-letsencrypt-nginx.sh &>>${INSTALL_LOG}
 
 # Download the suite of optional feature adding scripts
 wget -q ${GITHUB}/guac-optional-features/add-auth-duo.sh -O add-auth-duo.sh &>>${INSTALL_LOG}
