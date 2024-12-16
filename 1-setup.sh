@@ -72,13 +72,6 @@ source /etc/os-release
 # Core setup variables and mandatory inputs - EDIT VARIABLE VALUES TO SUIT ############################################
 #######################################################################################################################
 
-# Setup download and temp directory paths
-USER_HOME_DIR=$(eval echo ~${SUDO_USER})
-DOWNLOAD_DIR=$USER_HOME_DIR/guac-setup
-DB_BACKUP_DIR=$USER_HOME_DIR/mysqlbackups
-mkdir -p $DOWNLOAD_DIR
-mkdir -p $DB_BACKUP_DIR
-
 # GitHub download branch
 GITHUB="https://raw.githubusercontent.com/itiligent/Guacamole-Install/main"
 
@@ -101,12 +94,10 @@ GUAC_URL=http://localhost:8080/guacamole/
 # Get the default route interface IP. May need to manually override this for multi homed systems or where cloud images may use 127.0.x.x
 DEFAULT_IP=$(ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | head -n 1 | awk '/inet/ {print $2}' | cut -d'/' -f1)
 
-# Install log Location
-INSTALL_LOG="${DOWNLOAD_DIR}/guacamole_install.log"
-
 #######################################################################################################################
 # Silent setup options - true/false or specific values below will skip prompt at install. EDIT TO SUIT ################
 #######################################################################################################################
+GUAC_DIR=""                     # Base directory for the guacamole setup
 SERVER_NAME=""                  # Server hostname (blank = use the current hostname)
 LOCAL_DOMAIN=""                 # Local DNS namespace/domain suffix (blank = keep the current suffix)
 INSTALL_MYSQL=""                # Install MySQL locally (true/false)
@@ -150,6 +141,20 @@ CRON_DENY_FILE="/etc/cron.deny" # Distro's cron deny file
 if [[ -f ".env" ]]; then
     set -a; source .env; set +a
 fi
+
+# Setup download and temp directory paths
+if [[ -d "${GUAC_DIR}" ]]; then
+    DOWNLOAD_DIR=${GUAC_DIR}/guac-setup
+    DB_BACKUP_DIR=${GUAC_DIR}/mysqlbackups
+    mkdir -p ${DOWNLOAD_DIR}
+    mkdir -p ${DB_BACKUP_DIR}
+else
+    echo -e "${LRED}GUAC_DIR must be defined${GREY}, exiting..." 1>&2
+    exit 1
+fi
+
+# Install log Location
+INSTALL_LOG="${DOWNLOAD_DIR}/guacamole_install.log"
 
 #######################################################################################################################
 # Download GitHub setup scripts. BEFORE RUNNING SETUP, COMMENT OUT DOWNLOAD LINES OF ANY SCRIPTS YOU HAVE EDITED ! ####
