@@ -271,13 +271,13 @@ mkdir -p /etc/guacamole/extensions/
 # Create a custom guacd service account and heavily lock it down
 adduser "${GUACD_ACCOUNT}" --disabled-password --disabled-login --gecos "" > /dev/null 2>&1
 gpasswd -d "${GUACD_ACCOUNT}" users > /dev/null 2>&1
-echo -e "\nMatch User ${GUACD_ACCOUNT}\n    X11Forwarding no\n    AllowTcpForwarding no\n    PermitTTY no\n    ForceCommand cvs server" | sudo tee -a /etc/ssh/sshd_config > /dev/null 2>&1
+echo -e "\nMatch User ${GUACD_ACCOUNT}\n    X11Forwarding no\n    AllowTcpForwarding no\n    PermitTTY no\n    ForceCommand cvs server" | tee -a /etc/ssh/sshd_config > /dev/null 2>&1
 systemctl restart ssh
 touch "${CRON_DENY_FILE}"
 chmod 644 "${CRON_DENY_FILE}"
 chown root:root "${CRON_DENY_FILE}"
 if ! grep -q "^${GUACD_ACCOUNT}$" "${CRON_DENY_FILE}"; then
-   echo "$GUACD_ACCOUNT" | sudo tee -a "$CRON_DENY_FILE" > /dev/null 2>&1
+   echo "$GUACD_ACCOUNT" | tee -a "$CRON_DENY_FILE" > /dev/null 2>&1
 fi
 
 # Setup freerdp profile permissions for storing certificates
@@ -556,7 +556,7 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
         echo
     fi
 
-   # A simple method to find the correct file containing the default MySQL timezone setting from a potential list of candidates. 
+   # A simple method to find the correct file containing the default MySQL timezone setting from a potential list of candidates.
    # Add to this array if your distro uses a different path to the .cnf containing the default_time_zone value.
     for x in /etc/mysql/mariadb.conf.d/50-server.cnf \
         /etc/mysql/mysql.conf.d/mysqld.cnf \
@@ -599,9 +599,9 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
         echo
     fi
 
-    # This below block should stay as "localhost" for all local MySQL install situations and it is driven by the $MYSQL_HOST setting. 
-    # $GUAC_USERHost determines from WHERE the new ${GUAC_USER} will be able to login to the database (either from specific remote IPs 
-    # or from localhost only.) 
+    # This below block should stay as "localhost" for all local MySQL install situations and it is driven by the $MYSQL_HOST setting.
+    # $GUAC_USERHost determines from WHERE the new ${GUAC_USER} will be able to login to the database (either from specific remote IPs
+    # or from localhost only.)
     if [[ "${MYSQL_HOST}" != "localhost" ]]; then
         GUAC_USERHost="%"
         echo -e "${LYELLOW}${GUAC_USER} is set to accept db logins from any host, you may wish to limit this to specific IPs.${GREY}"
@@ -702,8 +702,8 @@ fi
 
 # Ensure guacd is started
 echo -e "${GREY}Starting guacd service & enable at boot..."
-# Update the systemd unit file the default daemon to the chosen service account 
-sudo sed -i "s/\bdaemon\b/${GUACD_ACCOUNT}/g" /etc/systemd/system/guacd.service
+# Update the systemd unit file the default daemon to the chosen service account
+sed -i "s/\bdaemon\b/${GUACD_ACCOUNT}/g" /etc/systemd/system/guacd.service
 systemctl daemon-reload
 systemctl enable guacd
 systemctl stop guacd 2>/dev/null
@@ -739,7 +739,7 @@ ufw default allow outgoing >/dev/null 2>&1
 ufw default deny incoming >/dev/null 2>&1
 ufw allow OpenSSH >/dev/null 2>&1
 ufw allow 8080/tcp >/dev/null 2>&1
-echo "y" | sudo ufw enable >/dev/null 2>&1
+echo "y" | ufw enable >/dev/null 2>&1
 ufw logging off >/dev/null 2>&1 # Reduce firewall logging noise
 if [[ $? -ne 0 ]]; then
     echo -e "${LRED}Failed. See ${INSTALL_LOG}${GREY}" 1>&2

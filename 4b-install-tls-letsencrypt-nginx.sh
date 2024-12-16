@@ -106,7 +106,7 @@ ufw default deny incoming >/dev/null 2>&1
 ufw allow OpenSSH >/dev/null 2>&1
 ufw allow 80/tcp >/dev/null 2>&1
 ufw allow 443/tcp >/dev/null 2>&1
-echo "y" | sudo ufw enable >/dev/null 2>&1
+echo "y" | ufw enable >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
     echo -e "${LRED}Failed. See ${INSTALL_LOG}${GREY}" 1>&2
     exit 1

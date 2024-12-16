@@ -169,12 +169,7 @@ wget -q --show-progress ${GITHUB}/upgrade-guacamole.sh -O upgrade-guacamole.sh
 wget -q --show-progress ${GITHUB}/branding.jar -O branding.jar
 chmod +x *.sh
 
-# Pause here to optionally customise downloaded scripts before any actual install actions begin
-echo -e "${LYELLOW}Ctrl+Z now to exit now if you wish to customise 1-setup.sh options or create an unattended install."
-echo
-
-# This first sudo command is a trigger to pause for setup script customisation shown above, then to continue as sudo where needed.
-sudo apt-get update -qq &> /dev/null
+apt-get update -qq &> /dev/null
 
 #######################################################################################################################
 # Package dependency handling and workarounds for various distros, MODIFY ONLY IF NEEDED ##############################
@@ -201,7 +196,7 @@ if [[ ${ID,,} = "ubuntu" ]] || [[ ${ID,,} = *"ubuntu"* ]] || [[ ${ID,,} = *"linu
     JPEGTURBO="libjpeg-turbo8-dev"
     LIBPNG="libpng-dev"
     # Just in case this repo is not present in the distro
-    sudo add-apt-repository -y universe &>>${INSTALL_LOG}
+    add-apt-repository -y universe &>>${INSTALL_LOG}
 elif [[ ${ID,,} = "debian" ]] || [[ ${ID,,} = "raspbian" ]]; then
     JPEGTURBO="libjpeg62-turbo-dev"
     LIBPNG="libpng-dev"
@@ -223,8 +218,8 @@ fi
 
 # Workaround for Debian incompatibilities with later Tomcat versions. (Adds the oldstable repo and downgrades the Tomcat version)
 if [[ ${ID,,} = "debian" && ${VERSION_CODENAME,,} = *"bookworm"* ]] || [[ ${ID,,} = "debian" && ${VERSION_CODENAME,,} = *"trixie"* ]]; then #(checks for upper and lower case)
-    echo "deb http://deb.debian.org/debian/ bullseye main" | sudo tee /etc/apt/sources.list.d/bullseye.list &> /dev/null
-    sudo apt-get update -qq &> /dev/null
+    echo "deb http://deb.debian.org/debian/ bullseye main" | tee /etc/apt/sources.list.d/bullseye.list &> /dev/null
+    apt-get update -qq &> /dev/null
     TOMCAT_VERSION="tomcat9"
 fi
 
@@ -235,8 +230,8 @@ fi
 
 # Workaround for Ubuntu 24.x Tomcat 10 incompatibilities. (Adds old Jammy repo and downgrades the Tomcat version)
 if [[ ${ID,,} = "ubuntu" && ${VERSION_CODENAME,,} = *"noble"* ]]; then
-    echo "deb http://archive.ubuntu.com/ubuntu/ jammy universe" | sudo tee /etc/apt/sources.list.d/jammy.list &> /dev/null
-    sudo apt-get update -qq &> /dev/null
+    echo "deb http://archive.ubuntu.com/ubuntu/ jammy universe" | tee /etc/apt/sources.list.d/jammy.list &> /dev/null
+    apt-get update -qq &> /dev/null
     TOMCAT_VERSION="tomcat9"
 fi
 
@@ -308,20 +303,20 @@ if [[ -z ${SERVER_NAME} ]]; then
     echo
     # A SERVER_NAME was derived via the prompt
     # Apply the SERVER_NAME value & remove & update any old 127.0.1.1 localhost references
-    $(sudo hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
+    $(hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
 	sleep 1
-    sudo sed -i '/127.0.1.1/d' /etc/hosts &>>${INSTALL_LOG}
-    echo '127.0.1.1       '${SERVER_NAME}'' | sudo tee -a /etc/hosts &>>${INSTALL_LOG}
-    $(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+    sed -i '/127.0.1.1/d' /etc/hosts &>>${INSTALL_LOG}
+    echo '127.0.1.1       '${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
+    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 else
     echo
     # A SERVER_NAME value was derived from a pre-set silent install option.
     # Apply the SERVER_NAME value & remove & update any old 127.0.1.1 localhost references
-    $(sudo hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
+    $(hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
 	sleep 1
-    sudo sed -i '/127.0.1.1/d' /etc/hosts &>>${INSTALL_LOG}
-    echo '127.0.1.1       '${SERVER_NAME}'' | sudo tee -a /etc/hosts &>>${INSTALL_LOG}
-    $(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+    sed -i '/127.0.1.1/d' /etc/hosts &>>${INSTALL_LOG}
+    echo '127.0.1.1       '${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
+    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 fi
 
 # Ensure LOCAL_DOMAIN suffix & localhost entries are consistent
@@ -335,32 +330,32 @@ if [[ -z ${LOCAL_DOMAIN} ]]; then
     echo
     # A LOCAL_DOMAIN value was derived via the prompt
     # Remove any old localhost & resolv file values & update these with the new LOCAL_DOMAIN value
-	$(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+	$(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 	sleep 1
-    sudo sed -i "/${DEFAULT_IP}/d" /etc/hosts
-    sudo sed -i '/domain/d' /etc/resolv.conf
-    sudo sed -i '/search/d' /etc/resolv.conf
+    sed -i "/${DEFAULT_IP}/d" /etc/hosts
+    sed -i '/domain/d' /etc/resolv.conf
+    sed -i '/search/d' /etc/resolv.conf
     # Refresh the /etc/hosts file with the server name & new local domain value
-    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | sudo tee -a /etc/hosts &>>${INSTALL_LOG}
+    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
     # Refresh /etc/resolv.conf with new domain & search suffix values
-    echo 'domain	'${LOCAL_DOMAIN}'' | sudo tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    echo 'search	'${LOCAL_DOMAIN}'' | sudo tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    $(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+    echo 'domain	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
+    echo 'search	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
+    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 else
     echo
     # A LOCAL_DOMIN value was derived from a pre-set silent install option.
     # Remove any old localhost & resolv file values & update these with the new LOCAL_DOMAIN value
-	$(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+	$(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 	sleep 1
-    sudo sed -i "/${DEFAULT_IP}/d" /etc/hosts
-    sudo sed -i '/domain/d' /etc/resolv.conf
-    sudo sed -i '/search/d' /etc/resolv.conf
+    sed -i "/${DEFAULT_IP}/d" /etc/hosts
+    sed -i '/domain/d' /etc/resolv.conf
+    sed -i '/search/d' /etc/resolv.conf
     # Refresh the /etc/hosts file with the server name & new local domain value
-    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | sudo tee -a /etc/hosts &>>${INSTALL_LOG}
+    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
     # Refresh /etc/resolv.conf with new domain & search suffix values
-    echo 'domain	'${LOCAL_DOMAIN}'' | sudo tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    echo 'search	'${LOCAL_DOMAIN}'' | sudo tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    $(sudo systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+    echo 'domain	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
+    echo 'search	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
+    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 fi
 
 # Now that $SERVER_NAME and $LOCAL_DOMAIN values are updated and refreshed, both values are merged to build
@@ -774,7 +769,7 @@ export DOMAIN_SUFFIX=$DOMAIN_SUFFIX
 export CRON_DENY_FILE=$CRON_DENY_FILE
 
 # Run the Guacamole install script (with all exported variables from this current shell)
-sudo -E ./2-install-guacamole.sh
+-E ./2-install-guacamole.sh
 if [[ $? -ne 0 ]]; then
     echo -e "${LRED}2-install-guacamole.sh FAILED. See ${INSTALL_LOG}${GREY}" 1>&2
     exit 1
@@ -801,19 +796,19 @@ rm cron_1
 
 # Install Nginx reverse proxy front end to Guacamole if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]]; then
-    sudo -E ./3-install-nginx.sh
+    -E ./3-install-nginx.sh
     echo -e "${LGREEN}Nginx install complete\nhttp://${PROXY_SITE} - admin login: guacadmin pass: guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
 fi
 
 # Apply self signed TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = true ]] && [[ "${LETS_ENCRYPT}" != true ]]; then
-    sudo -E ./4a-install-tls-self-signed-nginx.sh ${PROXY_SITE} ${CERT_DAYS} ${DEFAULT_IP} | tee -a ${INSTALL_LOG} # Logged to capture client cert import instructions
+    -E ./4a-install-tls-self-signed-nginx.sh ${PROXY_SITE} ${CERT_DAYS} ${DEFAULT_IP} | tee -a ${INSTALL_LOG} # Logged to capture client cert import instructions
     echo -e "${LGREEN}Self signed certificate configured for Nginx \n${LYELLOW}https:${LGREEN}//${PROXY_SITE}  - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
 fi
 
 # Apply Let's Encrypt TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" != true ]]; then
-    sudo -E ./4b-install-tls-letsencrypt-nginx.sh
+    -E ./4b-install-tls-letsencrypt-nginx.sh
     echo -e "${LGREEN}Let's Encrypt TLS configured for Nginx \n${LYELLOW}https:${LGREEN}//${LE_DNS_NAME}  - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
 fi
 
@@ -835,8 +830,8 @@ fi
 echo
 echo -e "${GREY}Removing build-essential package & cleaning up..."
 mv $USER_HOME_DIR/1-setup.sh $DOWNLOAD_DIR
-sudo apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
-sudo apt-get -y autoremove &>>${INSTALL_LOG}
+apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
+apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo -e "${LRED}Failed. See ${INSTALL_LOG}${GREY}" 1>&2
     exit 1
