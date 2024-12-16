@@ -90,6 +90,7 @@ GUACD_ACCOUNT="guacd"           # Service account guacd will run under (and will
 DB_TZ=$(cat /etc/timezone)      # Blank "" defaults to UTC, for local timezone: $(cat /etc/timezone)
 INSTALL_TOTP="false"            # Add TOTP MFA extension (true/false), can't be installed simultaneously with DUO)
 INSTALL_DUO="false"             # Add DUO MFA extension (true/false, can't be installed simultaneously with TOTP)
+INSTALL_OPENID="false"               # Add OpenID Connect extension (true/false)
 INSTALL_LDAP="false"            # Add Active Directory extension (true/false)
 INSTALL_QCONNECT="false"        # Add Guacamole console quick connect feature (true/false)
 INSTALL_HISTREC="false"         # Add Guacamole history recording storage feature (true/false)
@@ -115,6 +116,19 @@ RDP_SHARE_LABEL="RDP Share"     # Custom RDP shared drive name in Windows Explor
 RDP_PRINTER_LABEL="RDP Printer" # Custom RDP printer name shown in Windows
 CRON_DENY_FILE="/etc/cron.deny" # Distro's cron deny file
 SETUP_EMAIL="false"             # Install postfix for email notifications (true/false)
+
+# OpenID Connect extension configuration
+OPENID_AUTHORIZATION_ENDPOINT=""
+OPENID_JWKS_ENDPOINT=""
+OPENID_ISSUER=""
+OPENID_CLIENT_ID=""
+OPENID_REDIRECT_URI=""
+OPENID_USERNAME_CLAIM_TYPE=""
+OPENID_GROUPS_CLAIM_TYPE=""
+OPENID_SCOPE=""
+OPENID_ALLOWED_CLOCK_SKEW=""
+OPENID_MAX_TOKEN_VALIDITY=""
+OPENID_MAX_NONCE_VALIDITY=""
 
 # Pull in variables from dotenv file
 if [[ -f ".env" ]]; then
@@ -152,6 +166,7 @@ wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx-unattended.sh -O 4b-install-t
 wget -q ${GITHUB}/guac-optional-features/add-auth-duo.sh -O add-auth-duo.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/guac-optional-features/add-auth-ldap.sh -O add-auth-ldap.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/guac-optional-features/add-auth-totp.sh -O add-auth-totp.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-auth-openid.sh -O add-auth-openid.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/guac-optional-features/add-xtra-quickconnect.sh -O add-xtra-quickconnect.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/guac-optional-features/add-xtra-histrecstor.sh -O add-xtra-histrecstor.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/guac-optional-features/add-smtp-relay-o365.sh -O add-smtp-relay-o365.sh &>>${INSTALL_LOG}
@@ -366,6 +381,11 @@ if [[ -z "${INSTALL_LDAP}" ]]; then
     INSTALL_LDAP=false
 fi
 
+# Prompt to install OpenID Connect SSO extension
+if [[ -z "${INSTALL_OPENID}" ]]; then
+    INSTALL_OPENID=false
+fi
+
 
 # Quick Connect feature (some higher security use cases may not want this)
 if [[ -z "${INSTALL_QCONNECT}" ]]; then
@@ -549,6 +569,7 @@ export DB_TZ="${DB_TZ}"
 export INSTALL_TOTP=$INSTALL_TOTP
 export INSTALL_DUO=$INSTALL_DUO
 export INSTALL_LDAP=$INSTALL_LDAP
+export INSTALL_OPENID=$INSTALL_OPENID
 export INSTALL_QCONNECT=$INSTALL_QCONNECT
 export INSTALL_HISTREC=$INSTALL_HISTREC
 export HISTREC_PATH="${HISTREC_PATH}"
@@ -571,6 +592,17 @@ export RDP_SHARE_LABEL="${RDP_SHARE_LABEL}"
 export RDP_PRINTER_LABEL="${RDP_PRINTER_LABEL}"
 export LOCAL_DOMAIN=$LOCAL_DOMAIN
 export CRON_DENY_FILE=$CRON_DENY_FILE
+export OPENID_AUTHORIZATION_ENDPOINT="${OPENID_AUTHORIZATION_ENDPOINT}"
+export OPENID_JWKS_ENDPOINT="${OPENID_JWKS_ENDPOINT}"
+export OPENID_ISSUER="${OPENID_ISSUER}"
+export OPENID_CLIENT_ID="${OPENID_CLIENT_ID}"
+export OPENID_REDIRECT_URI="${OPENID_REDIRECT_URI}"
+export OPENID_USERNAME_CLAIM_TYPE="${OPENID_USERNAME_CLAIM_TYPE}"
+export OPENID_GROUPS_CLAIM_TYPE="${OPENID_GROUPS_CLAIM_TYPE}"
+export OPENID_SCOPE="${OPENID_SCOPE}"
+export OPENID_ALLOWED_CLOCK_SKEW="${OPENID_ALLOWED_CLOCK_SKEW}"
+export OPENID_MAX_TOKEN_VALIDITY="${OPENID_MAX_TOKEN_VALIDITY}"
+export OPENID_MAX_NONCE_VALIDITY="${OPENID_MAX_NONCE_VALIDITY}"
 
 # Run the Guacamole install script (with all exported variables from this current shell)
 -E ./2-install-guacamole.sh
@@ -647,6 +679,13 @@ if [[ $INSTALL_LDAP == "true" ]]; then
     echo
     echo "${LYELLOW}Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
     echo "See https://guacamole.apache.org/doc/gug/ldap-auth.html"
+fi
+
+# OpenID Connect Settings reminder, LDAP auth is not functional until the config is complete
+if [[ $INSTALL_OPENID == "true" ]]; then
+    echo
+    echo -e "${LYELLOW}Reminder: OpenID Connect requires that your OpenID Connect identity provider configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before OpenID Connect auth will be active."
+    echo -e "See https://guacamole.apache.org/doc/gug/openid-auth.html"
 fi
 
 # Tidy up

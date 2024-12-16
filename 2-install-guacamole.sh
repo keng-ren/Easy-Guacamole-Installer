@@ -79,7 +79,7 @@ fi
 
 # Download Guacamole Server
 echo "Downloading Guacamole source files..."
-wget -q -O guacamole-server-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/source/guacamole-server-${GUAC_VERSION}.tar.gz
+wget -q -O guacamole-server-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/source/guacamole-server-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Failed to download guacamole-server-${GUAC_VERSION}.tar.gz" 1>&2
     echo "${GUAC_SOURCE_LINK}/source/guacamole-server-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -90,7 +90,7 @@ else
 fi
 
 # Download Guacamole Client
-wget -q -O guacamole-${GUAC_VERSION}.war ${GUAC_SOURCE_LINK}/binary/guacamole-${GUAC_VERSION}.war
+wget -q -O guacamole-${GUAC_VERSION}.war ${GUAC_SOURCE_LINK}/binary/guacamole-${GUAC_VERSION}.war &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Failed to download guacamole-${GUAC_VERSION}.war" 1>&2
     echo "${GUAC_SOURCE_LINK}/binary/guacamole-${GUAC_VERSION}.war" &>>${INSTALL_LOG}
@@ -100,7 +100,7 @@ else
 fi
 
 # Download MySQL connector/j
-wget -q -O mysql-connector-j-${MYSQLJCON}.tar.gz ${MYSQLJCON_SOURCE_LINK}
+wget -q -O mysql-connector-j-${MYSQLJCON}.tar.gz ${MYSQLJCON_SOURCE_LINK} &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Failed to download mysql-connector-j-${MYSQLJCON}.tar.gz" 1>&2
     echo "${MYSQLJCON_SOURCE_LINK}" &>>${INSTALL_LOG}
@@ -111,7 +111,7 @@ else
 fi
 
 # Download Guacamole database auth extension
-wget -q -O guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz
+wget -q -O guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Failed to download guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" 1>&2
     echo "${GUAC_SOURCE_LINK}/binary/guacamole-auth-jdbc-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -123,7 +123,7 @@ fi
 
 # Download TOTP auth extension
 if [[ "${INSTALL_TOTP}" = true ]]; then
-    wget -q -O guacamole-auth-totp-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-totp-${GUAC_VERSION}.tar.gz
+    wget -q -O guacamole-auth-totp-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-totp-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
         echo "Failed to download guacamole-auth-totp-${GUAC_VERSION}.tar.gz" 1>&2
         echo "${GUAC_SOURCE_LINK}/binary/guacamole-auth-totp-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -136,7 +136,7 @@ fi
 
 # Download DUO auth extension
 if [[ "${INSTALL_DUO}" = true ]]; then
-    wget -q -O guacamole-auth-duo-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-duo-${GUAC_VERSION}.tar.gz
+    wget -q -O guacamole-auth-duo-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-duo-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
         echo "Failed to download guacamole-auth-duo-${GUAC_VERSION}.tar.gz" 1>&2
         echo "${GUAC_SOURCE_LINK}/binary/guacamole-auth-duo-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -149,7 +149,7 @@ fi
 
 # Download LDAP auth extension
 if [[ "${INSTALL_LDAP}" = true ]]; then
-    wget -q -O guacamole-auth-ldap-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-ldap-${GUAC_VERSION}.tar.gz
+    wget -q -O guacamole-auth-ldap-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-ldap-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
         echo "Failed to download guacamole-auth-ldap-${GUAC_VERSION}.tar.gz" 1>&2
         echo "${GUAC_SOURCE_LINK}/binary/guacamole-auth-ldap-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -160,9 +160,24 @@ if [[ "${INSTALL_LDAP}" = true ]]; then
     fi
 fi
 
+# Download OpenID Connect auth extension
+if [[ "${INSTALL_OPENID}" = true ]]; then
+    SSO_TAR_NAME="guacamole-auth-sso-${GUAC_VERSION}"
+    SSO_TAR="${SSO_TAR_NAME}.tar.gz"
+    wget -q -O ${SSO_TAR} ${GUAC_SOURCE_LINK}/binary/${SSO_TAR} &>>${INSTALL_LOG}
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to download ${SSO_TAR}" 1>&2
+        echo "${GUAC_SOURCE_LINK}/binary/${SSO_TAR}" &>>${INSTALL_LOG}
+        exit 1
+    else
+        tar -xzf ${SSO_TAR}
+        echo "Downloaded ${SSO_TAR}" &>>${INSTALL_LOG}
+    fi
+fi
+
 # Download Guacamole quick-connect extension
 if [[ "${INSTALL_QCONNECT}" = true ]]; then
-    wget -q -O guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz
+    wget -q -O guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
         echo "Failed to download guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz" 1>&2
         echo "${GUAC_SOURCE_LINK}/binary/guacamole-auth-quickconnect-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
@@ -175,7 +190,7 @@ fi
 
 # Download Guacamole history recording storage extension
 if [[ "${INSTALL_HISTREC}" = true ]]; then
-    wget -q -O guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz
+    wget -q -O guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/binary/guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
 
     if [[ $? -ne 0 ]]; then
         echo "Failed to download guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz" 1>&2
@@ -364,6 +379,47 @@ if [[ "${INSTALL_LDAP}" = true ]]; then
         exit 1
     else
         echo "OK" &>>${INSTALL_LOG}
+    fi
+fi
+
+# Move OpenID Connect files
+if [[ "${INSTALL_OPENID}" = true ]]; then
+    OPENID_JAR="openid/guacamole-auth-sso-openid-${GUAC_VERSION}"
+    echo "Moving ${OPENID_JAR}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    mv -f ${OPENID_JAR}/${OPENID_JAR}.jar /etc/guacamole/extensions/
+    chmod 664 /etc/guacamole/extensions/${OPENID_JAR}.jar
+    echo "#If you have issues with OpenID Connect, check the formatting is exactly as below or you will despair!" >>/etc/guacamole/guacamole.properties
+    echo "#Be extra careful with spaces at line ends or with windows line feeds." >>/etc/guacamole/guacamole.properties
+    echo "#openid-authorization-endpoint: ${OPENID_AUTHORIZATION_ENDPOINT}" >>/etc/guacamole/guacamole.properties
+    echo "#openid-jwks-endpoint: ${OPENID_JWKS_ENDPOINT}" >>/etc/guacamole/guacamole.properties
+    echo "#openid-issuer: ${OPENID_ISSUER}" >>/etc/guacamole/guacamole.properties
+    echo "#openid-client-id: ${OPENID_CLIENT_ID}" >>/etc/guacamole/guacamole.properties
+    echo "#openid-redirect-uri: ${OPENID_REDIRECT_URI}" >>/etc/guacamole/guacamole.properties
+    if [[ -n ${OPENID_USERNAME_CLAIM_TYPE} ]]
+        echo "#openid-username-claim-type: ${OPENID_USERNAME_CLAIM_TYPE}" >>/etc/guacamole/guacamole.properties
+    fi
+    if [[ -n ${OPENID_GROUPS_CLAIM_TYPE} ]]
+        echo "#openid-groups-claim-type: groups" >>/etc/guacamole/guacamole.properties
+    fi
+    if [[ -n ${OPENID_SCOPE} ]]
+        echo "#openid-scope: ${OPENID_SCOPE}”" >>/etc/guacamole/guacamole.properties
+     fi
+    if [[ -n ${OPENID_ALLOWED_CLOCK_SKEW} ]]
+        echo "#openid-allowed-clock-skew: ${OPENID_ALLOWED_CLOCK_SKEW}" >>/etc/guacamole/guacamole.properties
+    fi
+    if [[ -n ${OPENID_MAX_TOKEN_VALIDITY} ]]
+        echo "#openid-max-token-validity: ${OPENID_MAX_TOKEN_VALIDITY}" >>/etc/guacamole/guacamole.properties
+    fi
+    if [[ -n ${OPENID_MAX_NONCE_VALIDITY} ]]
+        echo "#openid-max-nonce-validity: ${OPENID_MAX_NONCE_VALIDITY}" >>/etc/guacamole/guacamole.properties
+    fi
+    echo "extension-priority: *, openid" >>/etc/guacamole/guacamole.properties
+    if [[ $? -ne 0 ]]; then
+        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        exit 1
+    else
+        echo "OK" &>>${INSTALL_LOG}
+        echo
     fi
 fi
 
