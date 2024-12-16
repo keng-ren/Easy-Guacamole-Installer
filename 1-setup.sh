@@ -136,7 +136,7 @@ CERT_LOCATION="Melbourne"       # Self signed cert setup, must not be blank
 CERT_ORG="Itiligent"            # Self signed cert setup, must not be blank
 CERT_OU="I.T."                  # Self signed cert setup, must not be blank
 CERT_DAYS="3650"                # Self signed cert setup, days until self signed TLS cert expiry, blank = default 3650
-LETS_ENCRYPT=""                 # Add Lets Encrypt public TLS cert for Nginx (true/false, self signed TLS not available with this option) 
+LETS_ENCRYPT=""                 # Add Lets Encrypt public TLS cert for Nginx (true/false, self signed TLS not available with this option)
 LE_DNS_NAME=""                  # Public DNS name for use with Lets Encrypt certificates, must match public DNS
 LE_EMAIL=""                     # Webmaster email for Lets Encrypt notifications
 BACKUP_EMAIL=""                 # Email address to send MySQL backup notifications to
