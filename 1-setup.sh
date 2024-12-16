@@ -11,9 +11,11 @@
 
 # 1-setup.sh is a central script that manages all inputs, options and sequences other included 'install' scripts.
 # 2-install-guacamole downloads Guacamole source and exectutes all Guacamole's build instructions.
-# 3-install-nginx.sh automatically installs and configures Nginx to work as an http port 80 front end to Guacamole.
+# 3a-install-nginx.sh automatically installs and configures Nginx to work as an http port 80 front end to Guacamole.
+# 3b-config-nginx.sh configures Nginx for each domain found on the system.
 # 4a-install-tls-self-signed-nginx.sh sets up the new Nginx/Guacamole front end with self signed TLS certificates.
 # 4b-install-tls-letsencrypt-nginx.sh sets up Nginx with public TLS certificates from LetsEncrypt.
+# 4c-install-tls-smallstep-nginx.sh sets up Nginx with TLS certificates from Smallstep CA.
 # Scripts with "add" in their name can be run post install to add optional features not included in the main install.
 
 # For troubleshooting check logs or place Guacamole in debug mode:
@@ -159,7 +161,8 @@ echo "Guacamole ${GUAC_VERSION} Auto Installer - Powered by Itiligent - Unattend
 cd $DOWNLOAD_DIR
 echo "Downloading the Guacamole build suite..." &>>${INSTALL_LOG}
 wget -q ${GITHUB}/2-install-guacamole.sh -O 2-install-guacamole.sh &>>${INSTALL_LOG}
-wget -q ${GITHUB}/3-install-nginx.sh -O 3-install-nginx.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/3a-install-nginx.sh -O 3a-install-nginx.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/3b-config-nginx.sh -O 3b-config-nginx.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/4a-install-tls-self-signed-nginx.sh -O 4a-install-tls-self-signed-nginx.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx.sh -O 4b-install-tls-letsencrypt-nginx.sh &>>${INSTALL_LOG}
 wget -q ${GITHUB}/4c-install-tls-smallstep-nginx.sh -O 4c-install-tls-smallstep-nginx.sh &>>${INSTALL_LOG}
@@ -490,25 +493,17 @@ sed -i "s|RDP_SHARE_HOST=|RDP_SHARE_HOST='${RDP_SHARE_HOST}'|g" $DOWNLOAD_DIR/up
 sed -i "s|RDP_SHARE_LABEL=|RDP_SHARE_LABEL='${RDP_SHARE_LABEL}'|g" $DOWNLOAD_DIR/upgrade-guacamole.sh
 sed -i "s|RDP_PRINTER_LABEL=|RDP_PRINTER_LABEL='${RDP_PRINTER_LABEL}'|g" $DOWNLOAD_DIR/upgrade-guacamole.sh
 
-# TODO: Split the 3-install-nginx.sh script into two files:
-# 1. The install and global configuration script
-# 2. The site configurations script - run per discovered domain
 if [[ ${#all_domains[@]} -gt 0 ]]; then
     for i in ${!all_domains[@]}; do
         dom=${all_domains[$i]}
-        config_file="${DOWNLOAD_DIR}/3-config-nginx-${i}.sh"
+        config_file="${DOWNLOAD_DIR}/3b-config-nginx-${i}.sh"
         echo "Creating NGINX site configuration file '${config_file}' for domain '${dom}'" &>>${INSTALL_LOG}
-        cp -f "${DOWNLOAD_DIR}/3-config-nginx.sh" "${config_file}"
+        cp -f "${DOWNLOAD_DIR}/3b-config-nginx.sh" "${config_file}"
         sed -i "s|PROXY_SITE=|PROXY_SITE='${SERVER_NAME}.${dom}'|g" "${config_file}"
-        sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" "${config_file}"
-        sed -i "s|GUAC_URL=|GUAC_URL='${GUAC_URL}'|g" "${config_file}"
     done
 else
     echo "Writing proxy URL '${PROXY_SITE}' to NGINX configuration file" &>>${INSTALL_LOG}
-    sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
-    sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
-    sed -i "s|GUAC_URL=|GUAC_URL='${GUAC_URL}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
-
+    sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" "${DOWNLOAD_DIR}/3b-config-nginx.sh"
 fi
 
 sed -i "s|DOWNLOAD_DIR=|DOWNLOAD_DIR='${DOWNLOAD_DIR}'|g" $DOWNLOAD_DIR/4a-install-tls-self-signed-nginx.sh
@@ -657,17 +652,29 @@ rm cron_1
 
 # Install Nginx reverse proxy front end to Guacamole if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]]; then
-    -E ./3-install-nginx.sh
+    -E ./3a-install-nginx.sh
     echo "Nginx install complete" &>>${INSTALL_LOG}
     if [[ ${#all_domains[@]} -gt 0 ]]; then
         for i in ${!all_domains[@]}; do
-            -E "./3-config-nginx-${i}.sh"
+            "./3b-config-nginx-${i}.sh"
             dom=${all_domains[$i]}
             echo "NGINX server configured\nhttp://${SERVER_NAME}.${dom}:8080${guac_path} - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
         done
     else
-        -E "./3-config-nginx.sh"
+        "./3b-config-nginx.sh"
         echo "Nginx server configured\nhttp://${PROXY_SITE} - admin login: guacadmin pass: guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
+    fi
+    # Reload everything
+    echo "Restaring Guacamole & Ngnix..." &>>${INSTALL_LOG}
+    systemctl restart ${TOMCAT_VERSION}
+    systemctl restart guacd
+    systemctl restart nginx
+    if [[ $? -ne 0 ]]; then
+        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        exit 1
+    else
+        echo "OK" &>>${INSTALL_LOG}
+        sleep 1
     fi
 fi
 
