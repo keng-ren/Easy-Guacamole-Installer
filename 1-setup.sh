@@ -21,25 +21,23 @@
 #     sudo systemctl stop guacd && sudo /usr/local/sbin/guacd -L debug -f
 
 #######################################################################################################################
+# Unattended install instructions:
+
+# Highly recommend building a custom Linux image and running this install from a systemd service unit.
+
+# Setup your network configuration with systemd .network files and use systemd-resolved,
+# rather than specifying the server name and/or domain via this script.
+
+#######################################################################################################################
 # Script pre-flight checks and settings ###############################################################################
 #######################################################################################################################
 
-clear
+journal_ns="easy-guac-setup"
 
-# Prepare text output colours
-GREY='\033[0;37m'
-DGREY='\033[0;90m'
-GREYB='\033[1;37m'
-LRED='\033[0;91m'
-LGREEN='\033[0;92m'
-LYELLOW='\033[0;93m'
-NC='\033[0m' #No Colour
 
 # Check to see if any previous version of build files exist, if so stop and check to be safe.
 if [[ "$(find . -maxdepth 1 \( -name 'guacamole-*' -o -name 'mysql-connector-j-*' \))" != "" ]]; then
-    echo
-    echo -e "${LRED}Possible previous install files detected in current build path. Please review and remove old guacamole install files before proceeding.${GREY}, exiting..." 1>&2
-    echo
+    systemd-cat -t ${journal_ns} echo "Possible previous install files detected in current build path. Please review and remove old guacamole install files before proceeding. Setup aborting."
     exit 1
 fi
 
@@ -78,26 +76,28 @@ DEFAULT_IP=$(ip addr show $(ip route | awk '/default/ { print $11" "$5 }'  | sor
 GUAC_DIR=""                     # Base directory for the guacamole setup
 SERVER_NAME=""                  # Server hostname (blank = use the current hostname)
 LOCAL_DOMAIN=""                 # Local DNS namespace/domain suffix (blank = keep the current suffix)
-INSTALL_MYSQL=""                # Install MySQL locally (true/false)
-SECURE_MYSQL=""                 # Apply mysql secure configuration tool (true/false)
+INSTALL_MYSQL="true"            # Install MySQL locally (true/false)
+SECURE_MYSQL="false"             # Apply mysql secure configuration tool (true/false)
 MYSQL_HOST=""                   # Blank "" = localhost MySQL install, adding a specific IP address will assume a remote MySQL instance
 MYSQL_PORT=""                   # If blank "" default is 3306
 GUAC_DB=""                      # If blank "" default is guacamole_db
 GUAC_USER=""                    # If blank "" default is guacamole_user
 MYSQL_ROOT_PWD=""               # Manadatory entry here or at script prompt
+MYSQL_ROOT_PWD_FILE=""          # Path to file containing MySQL root password
 GUAC_PWD=""                     # Manadatory entry here or at script prompt
+GUAC_PWD_FILE=""                # Path to file containing the MySQL user password
 GUACD_ACCOUNT="guacd"           # Service account guacd will run under (and will be very heavily locked down)
 DB_TZ=$(cat /etc/timezone)      # Blank "" defaults to UTC, for local timezone: $(cat /etc/timezone)
-INSTALL_TOTP=""                 # Add TOTP MFA extension (true/false), can't be installed simultaneously with DUO)
-INSTALL_DUO=""                  # Add DUO MFA extension (true/false, can't be installed simultaneously with TOTP)
-INSTALL_LDAP=""                 # Add Active Directory extension (true/false)
-INSTALL_QCONNECT=""             # Add Guacamole console quick connect feature (true/false)
-INSTALL_HISTREC=""              # Add Guacamole history recording storage feature (true/false)
+INSTALL_TOTP="false"            # Add TOTP MFA extension (true/false), can't be installed simultaneously with DUO)
+INSTALL_DUO="false"             # Add DUO MFA extension (true/false, can't be installed simultaneously with TOTP)
+INSTALL_LDAP="false"            # Add Active Directory extension (true/false)
+INSTALL_QCONNECT="false"        # Add Guacamole console quick connect feature (true/false)
+INSTALL_HISTREC="false"         # Add Guacamole history recording storage feature (true/false)
 HISTREC_PATH=""                 # If blank "" sets the Apache's default path of /var/lib/guacamole/recordings
-GUAC_URL_REDIR=""               # Auto redirect of host root URL http://xxx:8080 to http://xxx:8080/guacamole  (true/false)
-INSTALL_NGINX=""                # Install & configure Nginx reverse proxy http:80 frontend (true/false)
+GUAC_URL_REDIR="false"          # Auto redirect of host root URL http://xxx:8080 to http://xxx:8080/guacamole  (true/false)
+INSTALL_NGINX="true"            # Install & configure Nginx reverse proxy http:80 frontend (true/false)
 PROXY_SITE=""                   # Local DNS name for reverse proxy site and/or self signed TLS certificates (blank "" defaults to $DEFAULT_FQDN)
-SELF_SIGN=""                    # Add self signed TLS/https support to Nginx (true/false, Let's Encrypt not available with this option)
+SELF_SIGN="false"               # Add self signed TLS/https support to Nginx (true/false, Let's Encrypt not available with this option)
 RSA_KEYLENGTH="2048"            # Self signed RSA TLS key length. At least 2048, must not be blank
 CERT_COUNTRY="AU"               # Self signed cert setup, 2 character country code only, must not be blank
 CERT_STATE="Victoria"           # Self signed cert setup, must not be blank
@@ -105,7 +105,7 @@ CERT_LOCATION="Melbourne"       # Self signed cert setup, must not be blank
 CERT_ORG="Itiligent"            # Self signed cert setup, must not be blank
 CERT_OU="I.T."                  # Self signed cert setup, must not be blank
 CERT_DAYS="3650"                # Self signed cert setup, days until self signed TLS cert expiry, blank = default 3650
-LETS_ENCRYPT=""                 # Add Lets Encrypt public TLS cert for Nginx (true/false, self signed TLS not available with this option)
+LETS_ENCRYPT="false"            # Add Lets Encrypt public TLS cert for Nginx (true/false, self signed TLS not available with this option)
 LE_DNS_NAME=""                  # Public DNS name for use with Lets Encrypt certificates, must match public DNS
 LE_EMAIL=""                     # Webmaster email for Lets Encrypt notifications
 BACKUP_EMAIL=""                 # Email address to send MySQL backup notifications to
@@ -114,6 +114,7 @@ RDP_SHARE_HOST=""               # Custom RDP host name shown in Windows Explorer
 RDP_SHARE_LABEL="RDP Share"     # Custom RDP shared drive name in Windows Explorer (eg. "RDP_SHARE_LABEL on RDP_SHARE_HOST" eg. "your RDP share name on server01"
 RDP_PRINTER_LABEL="RDP Printer" # Custom RDP printer name shown in Windows
 CRON_DENY_FILE="/etc/cron.deny" # Distro's cron deny file
+SETUP_EMAIL="false"             # Install postfix for email notifications (true/false)
 
 # Pull in variables from dotenv file
 if [[ -f ".env" ]]; then
@@ -122,51 +123,45 @@ fi
 
 # Setup download and temp directory paths
 if [[ -d "${GUAC_DIR}" ]]; then
+    INSTALL_LOG="${GUAC_DIR}/guacamole_install.log"
     DOWNLOAD_DIR=${GUAC_DIR}/guac-setup
     DB_BACKUP_DIR=${GUAC_DIR}/mysqlbackups
     mkdir -p ${DOWNLOAD_DIR}
     mkdir -p ${DB_BACKUP_DIR}
 else
-    echo -e "${LRED}GUAC_DIR must be defined${GREY}, exiting..." 1>&2
+    systemd-cat -t ${journal_ns} echo "GUAC_DIR must be defined, exiting..."
     exit 1
 fi
-
-# Install log Location
-INSTALL_LOG="${DOWNLOAD_DIR}/guacamole_install.log"
 
 #######################################################################################################################
 # Download GitHub setup scripts. BEFORE RUNNING SETUP, COMMENT OUT DOWNLOAD LINES OF ANY SCRIPTS YOU HAVE EDITED ! ####
 #######################################################################################################################
 
 # Script branding header
-echo
-echo -e "${GREYB}Guacamole ${GUAC_VERSION} Auto Installer."
-echo -e "              ${LGREEN}Powered by Itiligent"
-echo
-echo
+echo "Guacamole ${GUAC_VERSION} Auto Installer - Powered by Itiligent - Unattended edition by KenG" &>>${INSTALL_LOG}
 
 # Download the suite of install scripts from GitHub
 cd $DOWNLOAD_DIR
-echo -e "${GREY}Downloading the Guacamole build suite...${DGREY}"
-wget -q --show-progress ${GITHUB}/2-install-guacamole.sh -O 2-install-guacamole.sh
-wget -q --show-progress ${GITHUB}/3-install-nginx.sh -O 3-install-nginx.sh
-wget -q --show-progress ${GITHUB}/4a-install-tls-self-signed-nginx.sh -O 4a-install-tls-self-signed-nginx.sh
-wget -q --show-progress ${GITHUB}/4b-install-tls-letsencrypt-nginx.sh -O 4b-install-tls-letsencrypt-nginx.sh
+echo "Downloading the Guacamole build suite..." &>>${INSTALL_LOG}
+wget -q ${GITHUB}/2-install-guacamole-unattended.sh -O 2-install-guacamole-unattended.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/3-install-nginx-unattended.sh -O 3-install-nginx-unattended.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/4a-install-tls-self-signed-nginx-unattended.sh -O 4a-install-tls-self-signed-nginx-unattended.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/4b-install-tls-letsencrypt-nginx-unattended.sh -O 4b-install-tls-letsencrypt-nginx-unattended.sh &>>${INSTALL_LOG}
 
 # Download the suite of optional feature adding scripts
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-auth-duo.sh -O add-auth-duo.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-auth-ldap.sh -O add-auth-ldap.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-auth-totp.sh -O add-auth-totp.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-xtra-quickconnect.sh -O add-xtra-quickconnect.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-xtra-histrecstor.sh -O add-xtra-histrecstor.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-smtp-relay-o365.sh -O add-smtp-relay-o365.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-tls-guac-daemon.sh -O add-tls-guac-daemon.sh
-wget -q --show-progress ${GITHUB}/guac-optional-features/add-fail2ban.sh -O add-fail2ban.sh
-wget -q --show-progress ${GITHUB}/guac-management/backup-guacamole.sh -O backup-guacamole.sh
-wget -q --show-progress ${GITHUB}/upgrade-guacamole.sh -O upgrade-guacamole.sh
+wget -q ${GITHUB}/guac-optional-features/add-auth-duo.sh -O add-auth-duo.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-auth-ldap.sh -O add-auth-ldap.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-auth-totp.sh -O add-auth-totp.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-xtra-quickconnect.sh -O add-xtra-quickconnect.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-xtra-histrecstor.sh -O add-xtra-histrecstor.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-smtp-relay-o365.sh -O add-smtp-relay-o365.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-tls-guac-daemon.sh -O add-tls-guac-daemon.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-optional-features/add-fail2ban.sh -O add-fail2ban.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/guac-management/backup-guacamole.sh -O backup-guacamole.sh &>>${INSTALL_LOG}
+wget -q ${GITHUB}/upgrade-guacamole.sh -O upgrade-guacamole.sh &>>${INSTALL_LOG}
 
 # Download the dark theme & branding template
-wget -q --show-progress ${GITHUB}/branding.jar -O branding.jar
+wget -q ${GITHUB}/branding.jar -O branding.jar &>>${INSTALL_LOG}
 chmod +x *.sh
 
 apt-get update -qq &> /dev/null
@@ -255,34 +250,9 @@ fi
 # DO NOT EDIT PAST THIS POINT! ########################################################################################
 #######################################################################################################################
 
-# An intitial dns suffix is needed as a starting value for the script prompts
-get_domain_suffix() {
-    echo "$1" | awk '{print $2}'
-}
-# Search for "search" and "domain" entries in /etc/resolv.conf
-search_line=$(grep -E '^search[[:space:]]+' /etc/resolv.conf)
-domain_line=$(grep -E '^domain[[:space:]]+' /etc/resolv.conf)
-# Check if both "search" and "domain" lines exist
-if [[ -n "$search_line" ]] && [[ -n "$domain_line" ]]; then
-    # Both "search" and "domain" lines exist, extract the domain suffix from both
-    search_suffix=$(get_domain_suffix "$search_line")
-    domain_suffix=$(get_domain_suffix "$domain_line")
-    # Print the domain suffix that appears first
-    if [[ ${#search_suffix} -lt ${#domain_suffix} ]]; then
-        DOMAIN_SUFFIX=$search_suffix
-    else
-        DOMAIN_SUFFIX=$domain_suffix
-    fi
-elif [[ -n "$search_line" ]]; then
-    # If only "search" line exists
-    DOMAIN_SUFFIX=$(get_domain_suffix "$search_line")
-elif [[ -n "$domain_line" ]]; then
-    # If only "domain" line exists
-    DOMAIN_SUFFIX=$(get_domain_suffix "$domain_line")
-else
-    # If no "search" or "domain" lines found
-    DOMAIN_SUFFIX="local"
-fi
+resolved_status=$(systemctl is-active systemd-resolved.service)
+
+
 
 #######################################################################################################################
 # Begin install menu prompts ##########################################################################################
@@ -294,22 +264,8 @@ fi
 
 # Ensure SERVER_NAME is consistent with local host entries
 if [[ -z ${SERVER_NAME} ]]; then
-    echo -e "${LYELLOW}Update Linux system HOSTNAME? [Enter to keep: ${HOSTNAME}]${LGREEN}"
-    read -p "              Enter Linux hostname : " SERVER_NAME
-    # If hit enter making no SERVER_NAME change, assume the existing hostname as current
-    if [[ "${SERVER_NAME}" = "" ]]; then
-        SERVER_NAME=$HOSTNAME
-    fi
-    echo
-    # A SERVER_NAME was derived via the prompt
-    # Apply the SERVER_NAME value & remove & update any old 127.0.1.1 localhost references
-    $(hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
-	sleep 1
-    sed -i '/127.0.1.1/d' /etc/hosts &>>${INSTALL_LOG}
-    echo '127.0.1.1       '${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
-    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
+    SERVER_NAME=$HOSTNAME
 else
-    echo
     # A SERVER_NAME value was derived from a pre-set silent install option.
     # Apply the SERVER_NAME value & remove & update any old 127.0.1.1 localhost references
     $(hostnamectl set-hostname $SERVER_NAME &>/dev/null &) &>/dev/null
@@ -319,88 +275,41 @@ else
     $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
 fi
 
+DEFAULT_FQDN=""
 # Ensure LOCAL_DOMAIN suffix & localhost entries are consistent
 if [[ -z ${LOCAL_DOMAIN} ]]; then
-    echo -e "${LYELLOW} Update Linux LOCAL DNS SUFFIX [Enter to keep: ${SERVER_NAME}.${DOMAIN_SUFFIX}]${LGREEN}"
-    read -p "              Complete this local domain suffix: $SERVER_NAME." LOCAL_DOMAIN
-    # If hit enter making no LOCAL_DOMAIN name change, assume the existing domain suffix as current
-    if [[ "${LOCAL_DOMAIN}" = "" ]]; then
-        LOCAL_DOMAIN=$DOMAIN_SUFFIX
-    fi
-    echo
-    # A LOCAL_DOMAIN value was derived via the prompt
-    # Remove any old localhost & resolv file values & update these with the new LOCAL_DOMAIN value
-	$(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
-	sleep 1
-    sed -i "/${DEFAULT_IP}/d" /etc/hosts
-    sed -i '/domain/d' /etc/resolv.conf
-    sed -i '/search/d' /etc/resolv.conf
-    # Refresh the /etc/hosts file with the server name & new local domain value
-    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
-    # Refresh /etc/resolv.conf with new domain & search suffix values
-    echo 'domain	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    echo 'search	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
-else
-    echo
-    # A LOCAL_DOMIN value was derived from a pre-set silent install option.
-    # Remove any old localhost & resolv file values & update these with the new LOCAL_DOMAIN value
-	$(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
-	sleep 1
-    sed -i "/${DEFAULT_IP}/d" /etc/hosts
-    sed -i '/domain/d' /etc/resolv.conf
-    sed -i '/search/d' /etc/resolv.conf
-    # Refresh the /etc/hosts file with the server name & new local domain value
-    echo ''${DEFAULT_IP}'	'${SERVER_NAME}.${LOCAL_DOMAIN} ${SERVER_NAME}'' | tee -a /etc/hosts &>>${INSTALL_LOG}
-    # Refresh /etc/resolv.conf with new domain & search suffix values
-    echo 'domain	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    echo 'search	'${LOCAL_DOMAIN}'' | tee -a /etc/resolv.conf &>>${INSTALL_LOG}
-    $(systemctl restart systemd-hostnamed &>/dev/null &) &>/dev/null
-fi
+    all_domains=()
+    while read line; do
+    if [[ -n "$line" ]]; then
+        all_domains+=("$line");
+    fi;
+    done < <(grep -E '^search[[:space:]]+' /etc/resolv.conf | awk '/search/ {for (i=2; i<=NF; i++) print $i}')
 
-# Now that $SERVER_NAME and $LOCAL_DOMAIN values are updated and refreshed, both values are merged to build
-# a local FQDN value (this is later used for the default reverse proxy site name.)
-DEFAULT_FQDN=$SERVER_NAME.$LOCAL_DOMAIN
+    while read line; do
+    if [[ -n "$line" ]] && ! printf '%s\0' "${all_domains[@]}" | grep -Fxzq -- "$line"; then
+        all_domains+=("$line");
+    fi;
+    done < <(grep -E '^domain[[:space:]]+' /etc/resolv.conf | awk '/domain/ {for (i=2; i<=NF; i++) print $i}')
+else
+    echo "User specified domain: ${LOCAL_DOMAIN}" &>>${INSTALL_LOG}
+    DEFAULT_FQDN="${SERVER_NAME}.${LOCAL_DOMAIN}"
+fi
 
 # Default RDP share and host labels will now use the updated $SERVER_NAME value as default (if not otherwise specified in silent setup options).
 if [[ -z ${RDP_SHARE_HOST} ]]; then
     RDP_SHARE_HOST=$SERVER_NAME
 fi
 
-# Prompt to install MySQL
-echo -e "${LGREEN}MySQL setup options:${GREY}"
+# Set MYSQL settings and values
+echo -e "MySQL setup options:"
 if [[ -z ${INSTALL_MYSQL} ]]; then
-    echo -e -n "SQL: Install MySQL locally? (For a REMOTE MySQL server select 'n') [y/n] [default y]: ${GREY}"
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Nn]$ ]]; then
-        INSTALL_MYSQL=false
-    else
-        INSTALL_MYSQL=true
-    fi
+    INSTALL_MYSQL=true
 fi
 
-# Prompt to apply the Mysql secure installation locally
 if [[ -z ${SECURE_MYSQL} ]] && [[ "${INSTALL_MYSQL}" = true ]]; then
-    echo -e -n "${GREY}SQL: Apply MySQL secure installation settings to LOCAL db? [y/n] [default y]: ${GREY}"
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Nn]$ ]]; then
-        SECURE_MYSQL=false
-    else
-        SECURE_MYSQL=true
-    fi
+    SECURE_MYSQL=false
 fi
 
-# Prompt for additional MYSQL settings and values
-if [[ "${INSTALL_MYSQL}" = false ]]; then
-    [[ -z "${MYSQL_HOST}" ]] &&
-        read -p "SQL: Enter remote MySQL server hostname or IP: " MYSQL_HOST
-    [[ -z "${MYSQL_PORT}" ]] &&
-        read -p "SQL: Enter remote MySQL server port [3306]: " MYSQL_PORT
-    [[ -z "${GUAC_DB}" ]] &&
-        read -p "SQL: Enter remote Guacamole database name [guacamole_db]: " GUAC_DB
-    [[ -z "${GUAC_USER}" ]] &&
-        read -p "SQL: Enter remote Guacamole user name [guacamole_user]: " GUAC_USER
-fi
 # Checking if a mysql host given, if not set a default
 if [[ -z "${MYSQL_HOST}" ]]; then
     MYSQL_HOST="localhost"
@@ -418,236 +327,116 @@ if [[ -z "${GUAC_USER}" ]]; then
     GUAC_USER="guacamole_user"
 fi
 
-# Prompt for MySQL root password, confirm correct password entry and prevent blank passwords. No root pw needed for remote instances.
-if [[ -z "${MYSQL_ROOT_PWD}" ]] && [[ "${INSTALL_MYSQL}" = true ]]; then
-    while true; do
-        read -s -p "SQL: Enter ${MYSQL_HOST}'s MySQL ROOT password: " MYSQL_ROOT_PWD
-        echo
-        read -s -p "SQL: Confirm ${MYSQL_HOST}'s MySQL ROOT password: " PROMPT2
-        echo
-        [[ "${MYSQL_ROOT_PWD}" = "${PROMPT2}" ]] && [[ "${MYSQL_ROOT_PWD}" != "" ]] && [[ "${PROMPT2}" != "" ]] && break
-        echo -e "${LRED}Passwords don't match or can't be null. Please try again.${GREY}" 1>&2
-    done
-fi
-
-# Prompt for Guacamole User password, confirm correct password entry and prevent blank passwords
-if [[ -z "${GUAC_PWD}" ]]; then
-    while true; do
-        read -s -p "SQL: Enter ${MYSQL_HOST}'s MySQL ${GUAC_USER} password: " GUAC_PWD
-        echo
-        read -s -p "SQL: Confirm ${MYSQL_HOST}'s MySQL ${GUAC_USER} password: " PROMPT2
-        echo
-        [[ "${GUAC_PWD}" = "${PROMPT2}" ]] && [[ "${GUAC_PWD}" != "" ]] && [[ "${PROMPT2}" != "" ]] && break
-        echo -e "${LRED}Passwords don't match or can't be null. Please try again.${GREY}" 1>&2
-    done
-fi
-
-# Prompt for preferred backup notification email address
-if [[ -z ${BACKUP_EMAIL} ]]; then
-    while true; do
-        read -p "SQL: Enter email address for SQL backup messages [Enter to skip]: " BACKUP_EMAIL
-        [[ "${BACKUP_EMAIL}" = "" ]] || [[ "${BACKUP_EMAIL}" != "" ]] && break
-        # Rather than allow a blank value, un-comment to alternately force user to enter an explicit value instead
-        # [[ "${BACKUP_EMAIL}" != "" ]] && break
-        # echo -e "${LRED}You must enter an email address. Please try again.${GREY}" 1>&2
-    done
-fi
-# If no backup notification email address is given, provide a non blank default value
-if [[ -z ${BACKUP_EMAIL} ]]; then
-    BACKUP_EMAIL="backup-email@yourdomain.com"
-fi
-
-echo
-# Prompt to install TOTP MFA
-echo -e "${LGREEN}Guacamole authentication extension options:${GREY}"
-if [[ -z "${INSTALL_TOTP}" ]] && [[ "${INSTALL_DUO}" != true ]]; then
-    echo -e -n "AUTH: Install TOTP? (choose 'n' if you want Duo) [y/n]? [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_TOTP=true
-        INSTALL_DUO=false
-    else
-        INSTALL_TOTP=false
+# MySQL root password. No root pw needed for remote instances.
+if [[ "${INSTALL_MYSQL}" = true ]]; then
+    if [[ -f "${MYSQL_ROOT_PWD_FILE}" ]]; then
+            MYSQL_ROOT_PWD=$(cat "${MYSQL_ROOT_PWD_FILE}")
+    elif [[ -z "${MYSQL_ROOT_PWD}" ]]; then
+        echo "Root password for MySQL deployment is required" &>>${INSTALL_LOG}
     fi
 fi
 
-# Prompt to install Duo MFA
-if [[ -z "${INSTALL_DUO}" ]] && [[ "${INSTALL_TOTP}" != true ]]; then
-    echo -e -n "${GREY}AUTH: Install Duo? [y/n] [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_DUO=true
-        INSTALL_TOTP=false
-    else
-        INSTALL_DUO=false
-    fi
+if [[ -f "${GUAC_PWD_FILE}" ]]; then
+        GUAC_PWD=$(cat "${GUAC_PWD_FILE}")
+elif [[ -z "${GUAC_PWD}" ]]; then
+    echo "User password for the MySQL database is required" &>>${INSTALL_LOG}
+fi
+
+if [[ -z ${SETUP_EMAIL} ]]; then
+    SETUP_EMAIL=false
+fi
+
+# TODO: Make sure an empty backup email does not cause errors - search for BACKUP_EMAIL in script files
+
+if [[ -z ${INSTALL_TOTP} ]]; then
+    INSTALL_TOTP=false
+fi
+
+if [[ -z ${INSTALL_DUO} ]]; then
+    INSTALL_DUO=false
 fi
 
 # We can't install TOTP and Duo at the same time (option not supported by Guacamole)
 if [[ "${INSTALL_TOTP}" = true ]] && [[ "${INSTALL_DUO}" = true ]]; then
-    echo -e "${LRED}GUAC MFA: TOTP and Duo cannot be installed at the same time.${GREY}" 1>&2
+    echo "GUAC MFA: TOTP and Duo cannot be installed at the same time." &>>${INSTALL_LOG}
     exit 1
 fi
 
-# Prompt to install Duo MFA
 if [[ -z "${INSTALL_LDAP}" ]]; then
-    echo -e -n "${GREY}AUTH: Install LDAP? [y/n] [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_LDAP=true
-    else
-        INSTALL_LDAP=false
-    fi
+    INSTALL_LDAP=false
 fi
 
-echo
-# Prompt to install the Quick Connect feature (some higher security use cases may not want this)
-echo -e "${LGREEN}Guacamole console optional extras:${GREY}"
+
+# Quick Connect feature (some higher security use cases may not want this)
 if [[ -z "${INSTALL_QCONNECT}" ]]; then
-    echo -e -n "${GREY}EXTRAS: Install Quick Connect feature? [y/n] [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_QCONNECT=true
-    else
-        INSTALL_QCONNECT=false
-    fi
+    INSTALL_QCONNECT=false
 fi
 
-# Prompt to install the History Recorded Storage feature
+# History Recorded Storage feature
 if [[ -z "${INSTALL_HISTREC}" ]]; then
-    echo -e -n "${GREY}EXTRAS: Install History Recorded Storage feature [y/n] [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_HISTREC=true
-    else
-        INSTALL_HISTREC=false
-    fi
+    INSTALL_HISTREC=false
 fi
 
 HISTREC_PATH_DEFAULT=/var/lib/guacamole/recordings # Apache default
-if [[ -z ${HISTREC_PATH} ]] && [[ "${INSTALL_HISTREC}" = true ]]; then
-    while true; do
-        read -p "EXTRAS: Enter recorded storage path [Enter for default ${HISTREC_PATH_DEFAULT}]: " HISTREC_PATH
-        [[ "${HISTREC_PATH}" = "" ]] || [[ "${HISTREC_PATH}" != "" ]] && break
-    done
-fi
-
-# If no custom path is given, assume the Apache default path on hitting enter
-if [[ -z "${HISTREC_PATH}" ]]; then
+# If no custom path is given, assume the Apache default path
+if [[ -z "${HISTREC_PATH}" ]] && [[ "${INSTALL_HISTREC}" = true ]]; then
     HISTREC_PATH="${HISTREC_PATH_DEFAULT}"
 fi
 
-echo
-# Prompt for Guacamole front end reverse proxy option
-echo -e "${LGREEN}Reverse Proxy & front end options:${GREY}"
-if [[ -z ${INSTALL_NGINX} ]]; then
-    echo -e -n "FRONT END: Protect Guacamole behind Nginx reverse proxy [y/n]? [default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        INSTALL_NGINX=true
-        GUAC_URL_REDIR=false
-    else
-        INSTALL_NGINX=false
-    fi
+
+# Guacamole front end reverse proxy option
+if [[ -z ${INSTALL_NGINX} ]];
+    INSTALL_NGINX=false
 fi
 
 # Prompt to redirect http://root:8080 to http://root:8080/guacamole if not installing reverse proxy
 if [[ -z ${GUAC_URL_REDIR} ]] && [[ "${INSTALL_NGINX}" = false ]]; then
-    echo -e -n "FRONT END: Redirect Guacamole http://domain.root:8080 to /guacamole [y/n]? [default y]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Nn]$ ]]; then
-        GUAC_URL_REDIR=false
-    else
-        GUAC_URL_REDIR=true
-    fi
+    GUAC_URL_REDIR=true
 fi
 
-# We must assign a DNS name for the new proxy site
-if [[ -z ${PROXY_SITE} ]] && [[ "${INSTALL_NGINX}" = true ]]; then
-    while true; do
-        read -p "FRONT END: Enter proxy LOCAL DNS name? [Enter to use ${DEFAULT_FQDN}]: " PROXY_SITE
-        [[ "${PROXY_SITE}" = "" ]] || [[ "${PROXY_SITE}" != "" ]] && break
-        # Rather than allow the default value below, un-comment to alternately force user to enter an explicit name instead
-        # [[ "${PROXY_SITE}" != "" ]] && break
-        # echo -e "${LRED}You must enter a proxy site DNS name. Please try again.${GREY}" 1>&2
-    done
+if [[ ${GUAC_URL_REDIR} = true ]] && [[ "${INSTALL_NGINX}" = true ]]; then
+    GUAC_URL_REDIR=false
 fi
 
 # If no proxy site dns name is given, lets assume the default FQDN is the proxy site name
-if [[ -z "${PROXY_SITE}" ]]; then
+if [[ -z "${PROXY_SITE}" ]] && [[ -n "${DEFAULT_FQDN}" ]] && [[ "${INSTALL_NGINX}" = true ]]; then
     PROXY_SITE="${DEFAULT_FQDN}"
 fi
 
-# Prompt for self signed TLS reverse proxy option
+# Self-signed TLS reverse proxy option
 if [[ -z ${SELF_SIGN} ]] && [[ "${INSTALL_NGINX}" = true ]]; then
-    # Prompt the user to see if they would like to install self signed TLS support for Nginx, default of no
-    echo -e -n "FRONT END: Add self signed TLS support to Nginx? [y/n]? (choose 'n' for Let's Encrypt)[default n]: "
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        SELF_SIGN=true
-        LETS_ENCRYPT=false
-    else
-        SELF_SIGN=false
-    fi
+    SELF_SIGN=false
 fi
 
-# Prompt to enter a self sign TLS certificate expiry
+# Self-signed TLS certificate expiry
 if [[ -z "${CERT_DAYS}" ]] && [[ "${SELF_SIGN}" = true ]]; then
-    while true; do
-    read -p "FRONT END: Enter number of days till TLS certificates will expire [Enter for ${CERT_DAYS}]: " CERT_DAYS
-        [[ "${CERT_DAYS}" = "" ]] || [[ "${CERT_DAYS}" != "" ]] && break
-    done
-fi
-# If no self sign TLS certificate expiry given, lets assume a generous 10 year default certificate expiry
-if [[ -z "${CERT_DAYS}" ]]; then
     CERT_DAYS="3650"
 fi
 
-# Prompt for Let's Encrypt TLS reverse proxy configuration option
+# Let's Encrypt TLS reverse proxy configuration option
 if [[ -z ${LETS_ENCRYPT} ]] && [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
-    echo -e -n "FRONT END: Add Let's Encrypt TLS support to Nginx reverse proxy [y/n] [default n]: ${GREY}"
-    read PROMPT
-    if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
-        LETS_ENCRYPT=true
-        SELF_SIGN=false
-    else
-        LETS_ENCRYPT=false
-    fi
+    LETS_ENCRYPT=false
 fi
 
-# Prompt for Let's Encrypt public dns name
+# Let's Encrypt public dns name
 if [[ -z ${LE_DNS_NAME} ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
-    while true; do
-        read -p "FRONT END: Enter the PUBLIC FQDN for your proxy site : " LE_DNS_NAME
-        [[ "${LE_DNS_NAME}" != "" ]] && break
-        echo -e "${LRED}You must enter a public DNS name. Please try again.${GREY}" 1>&2
-    done
+    echo "Public DNS name is required for Let's Encrypt configuration" &>>${INSTALL_LOG}
+    exit 1
 fi
 
-# Prompt for Let's Encrypt admin email
+# Let's Encrypt admin email
 if [[ -z ${LE_EMAIL} ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
-    while true; do
-        read -p "FRONT END: Enter the email address for Let's Encrypt notifications : " LE_EMAIL
-        [[ "${LE_EMAIL}" != "" ]] && break
-        echo -e "${LRED}You must enter an email address. Please try again.${GREY}" 1>&2
-    done
+    echo "Admin email is required for Let's Encrypt configuration" &>>${INSTALL_LOG}
+    exit 1
 fi
 
 #######################################################################################################################
 # Start global setup actions  #########################################################################################
 #######################################################################################################################
 
-clear
-echo
-echo -e "${GREYB}Guacamole ${GUAC_VERSION} Auto Installer."
-echo -e "              ${LGREEN}Powered by Itiligent"
-echo
-echo
+echo "Beginning Guacamole setup..." &>>${INSTALL_LOG}
 
-echo -e "${LGREEN}Beginning Guacamole setup...${GREY}"
-echo
-
-echo -e "${GREY}Synchronising the install script suite with the selected installation options..."
+echo "Synchronising the install script suite with the selected installation options..." &>>${INSTALL_LOG}
 # Sync the various manual config scripts with the relevant variables selected at install
 # This way scripts can be run at a later time without modification to match the original install
 sed -i "s|MYSQL_HOST=|MYSQL_HOST='${MYSQL_HOST}'|g" $DOWNLOAD_DIR/backup-guacamole.sh
@@ -679,9 +468,26 @@ sed -i "s|RDP_SHARE_HOST=|RDP_SHARE_HOST='${RDP_SHARE_HOST}'|g" $DOWNLOAD_DIR/up
 sed -i "s|RDP_SHARE_LABEL=|RDP_SHARE_LABEL='${RDP_SHARE_LABEL}'|g" $DOWNLOAD_DIR/upgrade-guacamole.sh
 sed -i "s|RDP_PRINTER_LABEL=|RDP_PRINTER_LABEL='${RDP_PRINTER_LABEL}'|g" $DOWNLOAD_DIR/upgrade-guacamole.sh
 
-sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" $DOWNLOAD_DIR/3-install-nginx.sh
-sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" $DOWNLOAD_DIR/3-install-nginx.sh
-sed -i "s|GUAC_URL=|GUAC_URL='${GUAC_URL}'|g" $DOWNLOAD_DIR/3-install-nginx.sh
+# TODO: Split the 3-install-nginx.sh script into two files:
+# 1. The install and global configuration script
+# 2. The site configurations script - run per discovered domain
+if [[ ${#all_domains[@]} -gt 0 ]]; then
+    for i in ${!all_domains[@]}; do
+        dom=${all_domains[$i]}
+        config_file="${DOWNLOAD_DIR}/3-config-nginx-${i}.sh"
+        echo "Creating NGINX site configuration file '${config_file}' for domain '${dom}'" &>>${INSTALL_LOG}
+        cp -f "${DOWNLOAD_DIR}/3-config-nginx.sh" "${config_file}"
+        sed -i "s|PROXY_SITE=|PROXY_SITE='${SERVER_NAME}.${dom}'|g" "${config_file}"
+        sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" "${config_file}"
+        sed -i "s|GUAC_URL=|GUAC_URL='${GUAC_URL}'|g" "${config_file}"
+    done
+else
+    echo "Writing proxy URL '${PROXY_SITE}' to NGINX configuration file" &>>${INSTALL_LOG}
+    sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
+    sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
+    sed -i "s|GUAC_URL=|GUAC_URL='${GUAC_URL}'|g" "${DOWNLOAD_DIR}/3-config-nginx.sh"
+
+fi
 
 sed -i "s|DOWNLOAD_DIR=|DOWNLOAD_DIR='${DOWNLOAD_DIR}'|g" $DOWNLOAD_DIR/4a-install-tls-self-signed-nginx.sh
 sed -i "s|PROXY_SITE=|PROXY_SITE='${PROXY_SITE}'|g" $DOWNLOAD_DIR/4a-install-tls-self-signed-nginx.sh
@@ -705,11 +511,10 @@ sed -i "s|INSTALL_LOG=|INSTALL_LOG='${INSTALL_LOG}'|g" $DOWNLOAD_DIR/4b-install-
 
 sed -i "s|LOCAL_DOMAIN=|LOCAL_DOMAIN='${LOCAL_DOMAIN}'|g" $DOWNLOAD_DIR/add-smtp-relay-o365.sh
 if [[ $? -ne 0 ]]; then
-    echo -e "${LRED}Failed. See ${INSTALL_LOG}${GREY}" 1>&2
+    echo "Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
-    echo -e "${LGREEN}OK${GREY}"
-    echo
+    echo "OK" &>>${INSTALL_LOG}
 fi
 
 # Export the required variables for use by child install scripts
@@ -765,18 +570,26 @@ export RDP_SHARE_HOST="${RDP_SHARE_HOST}"
 export RDP_SHARE_LABEL="${RDP_SHARE_LABEL}"
 export RDP_PRINTER_LABEL="${RDP_PRINTER_LABEL}"
 export LOCAL_DOMAIN=$LOCAL_DOMAIN
-export DOMAIN_SUFFIX=$DOMAIN_SUFFIX
 export CRON_DENY_FILE=$CRON_DENY_FILE
 
 # Run the Guacamole install script (with all exported variables from this current shell)
 -E ./2-install-guacamole.sh
 if [[ $? -ne 0 ]]; then
-    echo -e "${LRED}2-install-guacamole.sh FAILED. See ${INSTALL_LOG}${GREY}" 1>&2
+    echo -e "Guacamole install failed. See ${INSTALL_LOG}" 1>&2
     exit 1
-elif [[ "${GUAC_URL_REDIR}" = true ]]; then
-    echo -e "${LGREEN}Guacamole install complete\nhttp://${PROXY_SITE}:8080 - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
-else
-    echo -e "${LGREEN}Guacamole install complete\nhttp://${PROXY_SITE}:8080/guacamole - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
+if [[ "${INSTALL_NGINX}" = false ]]; then
+    if [[ "${GUAC_URL_REDIR}" = true ]]; then
+        guac_path=""
+    else
+        guac_path="/guacamole"
+    fi
+    if [[ ${#all_domains[@]} -gt 0 ]]; then
+        for dom in ${all_domains[@]}; do
+            echo "Guacamole install complete\nhttp://${SERVER_NAME}.${dom}:8080${guac_path} - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
+        done
+    else
+        echo "Guacamole install complete\nhttp://${PROXY_SITE}:8080 - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
+    fi
 fi
 
 # Add a Guacamole database backup (Mon-Fri 12:00am) into the current user's cron
@@ -797,49 +610,58 @@ rm cron_1
 # Install Nginx reverse proxy front end to Guacamole if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]]; then
     -E ./3-install-nginx.sh
-    echo -e "${LGREEN}Nginx install complete\nhttp://${PROXY_SITE} - admin login: guacadmin pass: guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
+    echo "Nginx install complete" &>>${INSTALL_LOG}
+    if [[ ${#all_domains[@]} -gt 0 ]]; then
+        for i in ${!all_domains[@]}; do
+            -E "./3-config-nginx-${i}.sh"
+            dom=${all_domains[$i]}
+            echo "NGINX server configured\nhttp://${SERVER_NAME}.${dom}:8080${guac_path} - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
+        done
+    else
+        -E "./3-config-nginx.sh"
+        echo "Nginx server configured\nhttp://${PROXY_SITE} - admin login: guacadmin pass: guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
+    fi
 fi
 
 # Apply self signed TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = true ]] && [[ "${LETS_ENCRYPT}" != true ]]; then
     -E ./4a-install-tls-self-signed-nginx.sh ${PROXY_SITE} ${CERT_DAYS} ${DEFAULT_IP} | tee -a ${INSTALL_LOG} # Logged to capture client cert import instructions
-    echo -e "${LGREEN}Self signed certificate configured for Nginx \n${LYELLOW}https:${LGREEN}//${PROXY_SITE}  - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
+    echo "Self signed certificate configured for Nginx \nhttps://${PROXY_SITE}  - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***"
 fi
 
 # Apply Let's Encrypt TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" != true ]]; then
     -E ./4b-install-tls-letsencrypt-nginx.sh
-    echo -e "${LGREEN}Let's Encrypt TLS configured for Nginx \n${LYELLOW}https:${LGREEN}//${LE_DNS_NAME}  - login user/pass: guacadmin/guacadmin\n${LYELLOW}***Be sure to change the password***${GREY}"
+    echo "Let's Encrypt TLS configured for Nginx \nhttps://${LE_DNS_NAME}  - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***"
 fi
 
 # Duo Settings reminder - If Duo is selected you can't login to Guacamole until this extension is fully configured
 if [[ $INSTALL_DUO == "true" ]]; then
     echo
-    echo -e "${LYELLOW}Reminder: Duo requires extra account specific info configured in the\n/etc/guacamole/guacamole.properties file before you can log in to Guacamole."
-    echo -e "See https://guacamole.apache.org/doc/gug/duo-auth.html"
+    echo "Reminder: Duo requires extra account specific info configured in the\n/etc/guacamole/guacamole.properties file before you can log in to Guacamole."
+    echo "See https://guacamole.apache.org/doc/gug/duo-auth.html"
 fi
 
 # LDAP Settings reminder, LDAP auth is not functional until the config is complete
 if [[ $INSTALL_LDAP == "true" ]]; then
     echo
-    echo -e "${LYELLOW}Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
-    echo -e "See https://guacamole.apache.org/doc/gug/ldap-auth.html"
+    echo "${LYELLOW}Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
+    echo "See https://guacamole.apache.org/doc/gug/ldap-auth.html"
 fi
 
 # Tidy up
 echo
-echo -e "${GREY}Removing build-essential package & cleaning up..."
+echo "Removing build-essential package & cleaning up..." &>>${INSTALL_LOG}
 mv $USER_HOME_DIR/1-setup.sh $DOWNLOAD_DIR
 apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
 apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo -e "${LRED}Failed. See ${INSTALL_LOG}${GREY}" 1>&2
+    echo "Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo -e "${LGREEN}OK${GREY}"
+    echo "OK" &>>${INSTALL_LOG}
     echo
 fi
 
 # Done
-printf "${LGREEN}Guacamole ${GUAC_VERSION} install complete! \n${NC}"
-echo -e ${NC}
+echo "Guacamole ${GUAC_VERSION} install complete!" &>>${INSTALL_LOG}
