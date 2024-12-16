@@ -35,28 +35,6 @@ LGREEN='\033[0;92m'
 LYELLOW='\033[0;93m'
 NC='\033[0m' #No Colour
 
-# Make sure the user is NOT running this script as root
-if [[ $EUID -eq 0 ]]; then
-    echo
-    echo -e "${LRED}This script must NOT be run as root, it will prompt for sudo when needed." 1>&2
-    echo -e ${NC}
-    exit 1
-fi
-
-# Check if sudo is installed. (Debian does not always include sudo by default)
-if ! command -v sudo &> /dev/null; then
-    echo "${LRED}Sudo is not installed. Please install sudo."
-    echo -e ${NC}
-    exit 1
-fi
-
-# Make sure the user running setup is a member of the sudo group
-if ! id -nG "$USER" | grep -qw "sudo"; then
-    echo
-    echo -e "${LRED}The current user (${USER}) must be a member of the 'sudo' group. Run as root: usermod -aG sudo your-username & re-login ${USER}${NC}" 1>&2
-    exit 1
-fi
-
 # Check to see if any previous version of build files exist, if so stop and check to be safe.
 if [[ "$(find . -maxdepth 1 \( -name 'guacamole-*' -o -name 'mysql-connector-j-*' \))" != "" ]]; then
     echo
