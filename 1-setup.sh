@@ -70,7 +70,7 @@ MARIADB_SOURCE_LINK="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 GUAC_URL=http://localhost:8080/guacamole/
 
 # Get the default route interface IP. May need to manually override this for multi homed systems or where cloud images may use 127.0.x.x
-DEFAULT_IP=$(ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | head -n 1 | awk '/inet/ {print $2}' | cut -d'/' -f1)
+DEFAULT_IP=$(ip addr show $(ip route | awk '/default/ { print $11" "$5 }'  | sort -n | awk '{ print $2 }' | xargs | cut -d ' ' -f 1 -) | grep "inet" | head -n 1 | awk '/inet/ {print $2}' | cut -d'/' -f1)
 
 #######################################################################################################################
 # Silent setup options - true/false or specific values below will skip prompt at install. EDIT TO SUIT ################
