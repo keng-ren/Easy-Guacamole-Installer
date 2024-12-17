@@ -17,15 +17,13 @@ if ! [[ $(id -u) = 0 ]]; then
     exit 1
 fi
 
-echo "Installing Nginx..." &>>${INSTALL_LOG}
 # Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
 PROXY_SITE=
 
-
-echo "Configuring Nginx as a reverse proxy for Guacamole's Apache Tomcat front end..." &>>${INSTALL_LOG}
 # TODO: Change to /etc/nginx/conf.d/
 # TODO: Set server_name to $PROXY_SITE
 # Configure /etc/nginx/sites-available/(local dns site name)
+echo "Adding site configuration to Nginx for '${PROXY_SITE}'" &>>${INSTALL_LOG}
 cat <<EOF | tee /etc/nginx/conf.d/${PROXY_SITE}.conf
 server {
     listen 80 default_server;
