@@ -300,15 +300,21 @@ DEFAULT_FQDN=""
 # Ensure LOCAL_DOMAIN suffix & localhost entries are consistent
 if [[ -z ${LOCAL_DOMAIN} ]]; then
     all_domains=()
+    all_ips=()
     while read line; do
     if [[ -n "$line" ]]; then
         all_domains+=("$line");
+        # Map domain to IP
+        domip=$(dig +short ${SERVER_NAME}.${line})
+        all_ips+=("$domip");
     fi;
     done < <(grep -E '^search[[:space:]]+' /etc/resolv.conf | awk '/search/ {for (i=2; i<=NF; i++) print $i}')
 
     while read line; do
     if [[ -n "$line" ]] && ! printf '%s\0' "${all_domains[@]}" | grep -Fxzq -- "$line"; then
         all_domains+=("$line");
+        domip=$(dig +short ${SERVER_NAME}.${line})
+        all_ips+=("$domip");
     fi;
     done < <(grep -E '^domain[[:space:]]+' /etc/resolv.conf | awk '/domain/ {for (i=2; i<=NF; i++) print $i}')
 else
@@ -531,10 +537,12 @@ smallstep_fname="4c-install-tls-smallstep-nginx"
 if [[ ${#all_domains[@]} -gt 0 ]]; then
     for i in ${!all_domains[@]}; do
         dom=${all_domains[$i]}
+        domip=${all_ips[$i]}
         config_file="${DOWNLOAD_DIR}/${smallstep_fname}-${i}.sh"
         echo "Creating Smallstep setup file '${config_file}' for domain '${dom}'" &>>${INSTALL_LOG}
         cp -f "${DOWNLOAD_DIR}/${smallstep_fname}.sh" "${config_file}"
         sed -i "s|PROXY_SITE=|PROXY_SITE='${SERVER_NAME}.${dom}'|g" "${config_file}"
+        sed -i "s|PROXY_IP=|PROXY_IP='${domip}'|g" "${config_file}"
     done
 else
     echo "Writing proxy URL '${PROXY_SITE}' to Smallstep setup file" &>>${INSTALL_LOG}

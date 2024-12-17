@@ -12,10 +12,20 @@
 
 # Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
 PROXY_SITE=
+PROXY_IP=
 
 if [[ -z "${PROXY_SITE}" ]]; then
     echo "PROXY_SITE variable is required, setup will abort" &>>${INSTALL_LOG}
     exit 1
+fi
+
+if [[ -z "${PROXY_IP}" ]]; then
+    # Valid for singlehomed systems
+    echo "Installing Certbot for ${PROXY_SITE}..." &>>${INSTALL_LOG}
+else
+    # Required if system is multihomed
+    echo "Installing Certbot for ${PROXY_SITE} on ${PROXY_IP}..." &>>${INSTALL_LOG}
+    PROXY_IP="${PROXY_IP}:"
 fi
 
 apt-get update -qq &> /dev/null && apt-get install certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG} &
@@ -42,10 +52,11 @@ fi
 echo "Configuring Nginx proxy for Smallstep TLS and setting up automatic HTTP redirect..." &>>${INSTALL_LOG}
 cat >/etc/nginx/conf.d/${PROXY_SITE}-ssl.conf <<EOL
 server {
-    listen 80 default_server;
-    #listen [::]:80 default_server;
-    root /var/www/html;
-    index index.html index.htm index.nginx-debian.html;
+    listen ${PROXY_IP}443 ssl;
+    ssl_certificate     ${PROXY_SITE}.crt;
+    ssl_certificate_key ${PROXY_SITE}.key;
+    #root /var/www/html;
+    #index index.html index.htm index.nginx-debian.html;
     server_name ${PROXY_SITE};
     location / {
         proxy_pass ${GUAC_URL};
