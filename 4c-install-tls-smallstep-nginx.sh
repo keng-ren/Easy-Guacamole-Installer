@@ -14,7 +14,10 @@ TOMCAT_VERSION=$(ls /etc/ | grep tomcat)
 # Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
 PROXY_SITE=
 
-echo "Installing Nginx & Certbot for ${PROXY_SITE}..." &>>${INSTALL_LOG}
+if [[ -z "${PROXY_SITE}" ]]; then
+    echo "PROXY_SITE variable is required, setup will abort" &>>${INSTALL_LOG}
+    exit 1
+fi
 
 apt-get update -qq &> /dev/null && apt-get install nginx certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG} &
 command_pid=$!

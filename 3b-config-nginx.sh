@@ -20,6 +20,11 @@ fi
 # Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
 PROXY_SITE=
 
+if [[ -z "${PROXY_SITE}" ]]; then
+    echo "PROXY_SITE variable is required, setup will abort" &>>${INSTALL_LOG}
+    exit 1
+fi
+
 # TODO: Change to /etc/nginx/conf.d/
 # TODO: Set server_name to $PROXY_SITE
 # Configure /etc/nginx/sites-available/(local dns site name)
