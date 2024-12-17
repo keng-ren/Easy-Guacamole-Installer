@@ -112,6 +112,7 @@ LETS_ENCRYPT="false"            # Add Lets Encrypt public TLS cert for Nginx (tr
 LE_DNS_NAME=""                  # Public DNS name for use with Lets Encrypt certificates, must match public DNS
 LE_EMAIL=""                     # Webmaster email for Lets Encrypt notifications
 STEPCA=""                       # Add step-ca certificates
+STEPCA_SERVER=""                # DNS or IP address to the Smallstep CA server
 BACKUP_EMAIL=""                 # Email address to send MySQL backup notifications to
 BACKUP_RETENTION="30"           # Days to keep SQL backups locally
 RDP_SHARE_HOST=""               # Custom RDP host name shown in Windows Explorer (eg. "RDP_SHARE_LABEL on RDP_SHARE_HOST"). Blank "" = $SERVER_NAME
@@ -597,6 +598,7 @@ export CERT_OU="${CERT_OU}"
 export CERT_DAYS=$CERT_DAYS
 export LE_DNS_NAME=$LE_DNS_NAME
 export LE_EMAIL=$LE_EMAIL
+export STEPCA_SERVER=${STEPCA_SERVER}
 export BACKUP_EMAIL=$BACKUP_EMAIL
 export RDP_SHARE_HOST="${RDP_SHARE_HOST}"
 export RDP_SHARE_LABEL="${RDP_SHARE_LABEL}"

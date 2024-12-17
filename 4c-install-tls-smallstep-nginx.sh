@@ -82,7 +82,7 @@ fi
 systemctl restart nginx
 
 # Run certbot to create and associate certificates with current public IP (must have tcp 80 and 443 open to work!)
-certbot --nginx -n -d ${PROXY_SITE}  --agree-tos --redirect --hsts
+certbot --nginx -n -d ${PROXY_SITE}  --agree-tos --redirect --hsts --server ${STEPCA_SERVER}
 echo
 echo "Smallstep successfully installed, but check for any errors above (DNS & firewall are the usual culprits)." &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
@@ -102,7 +102,7 @@ sed -i '/# certbot renew/d' cron_1
 # Randomly choose a daily update schedule and append this to the cron schedule
 HOUR=$(shuf -i 0-23 -n 1)
 MINUTE=$(shuf -i 0-59 -n 1)
-echo "${MINUTE} ${HOUR} * * * /usr/bin/certbot renew --quiet --pre-hook 'systemctl stop nginx' --post-hook 'systemctl start nginx'" >>cron_1
+echo "${MINUTE} ${HOUR} * * * /usr/bin/certbot renew --server ${STEPCA_SERVER} --quiet --pre-hook 'systemctl stop nginx' --post-hook 'systemctl start nginx'" >>cron_1
 # Overwrite old cron settings and cleanup
 crontab cron_1
 rm cron_1
