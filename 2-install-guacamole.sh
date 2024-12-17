@@ -408,7 +408,7 @@ if [[ "${INSTALL_OPENID}" = true ]]; then
         echo "#openid-groups-claim-type: groups" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n "${OPENID_SCOPE}" ]]; then
-        echo "#openid-scope: ${OPENID_SCOPE}”" >> /etc/guacamole/guacamole.properties
+        echo "#openid-scope: ${OPENID_SCOPE}" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n "${OPENID_ALLOWED_CLOCK_SKEW}" ]]; then
         echo "#openid-allowed-clock-skew: ${OPENID_ALLOWED_CLOCK_SKEW}" >> /etc/guacamole/guacamole.properties
@@ -425,7 +425,6 @@ if [[ "${INSTALL_OPENID}" = true ]]; then
         exit 1
     else
         echo "${msg}OK" &>>${INSTALL_LOG}
-        echo
     fi
 fi
 
