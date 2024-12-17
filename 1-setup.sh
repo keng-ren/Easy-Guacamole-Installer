@@ -302,20 +302,20 @@ if [[ -z "${LOCAL_DOMAIN}" ]]; then
     all_domains=()
     all_ips=()
     while read line; do
-    if [[ -n "$line" ]]; then
-        all_domains+=("$line");
-        # Map domain to IP
-        domip=$(dig +short ${SERVER_NAME}.${line})
-        all_ips+=("$domip");
-    fi;
+        if [[ -n "$line" ]]; then
+            all_domains+=("$line");
+            # Map domain to IP
+            domip=$(dig +short ${SERVER_NAME}.${line})
+            all_ips+=("$domip");
+        fi
     done < <(grep -E '^search[[:space:]]+' /etc/resolv.conf | awk '/search/ {for (i=2; i<=NF; i++) print $i}')
 
     while read line; do
-    if [[ -n "$line" ]] && ! printf '%s\0' "${all_domains[@]}" | grep -Fxzq -- "$line"; then
-        all_domains+=("$line");
-        domip=$(dig +short ${SERVER_NAME}.${line})
-        all_ips+=("$domip");
-    fi;
+        if [[ -n "$line" ]] && ! printf '%s\0' "${all_domains[@]}" | grep -Fxzq -- "$line"; then
+            all_domains+=("$line");
+            domip=$(dig +short ${SERVER_NAME}.${line})
+            all_ips+=("$domip");
+        fi
     done < <(grep -E '^domain[[:space:]]+' /etc/resolv.conf | awk '/domain/ {for (i=2; i<=NF; i++) print $i}')
 else
     echo "User specified domain: ${LOCAL_DOMAIN}" &>>${INSTALL_LOG}
