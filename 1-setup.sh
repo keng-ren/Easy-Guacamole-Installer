@@ -417,7 +417,7 @@ fi
 
 
 # Guacamole front end reverse proxy option
-if [[ -z ${INSTALL_NGINX} ]];
+if [[ -z ${INSTALL_NGINX} ]]; then
     INSTALL_NGINX=false
 fi
 
