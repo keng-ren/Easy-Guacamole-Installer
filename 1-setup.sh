@@ -627,9 +627,9 @@ export OPENID_MAX_TOKEN_VALIDITY="${OPENID_MAX_TOKEN_VALIDITY}"
 export OPENID_MAX_NONCE_VALIDITY="${OPENID_MAX_NONCE_VALIDITY}"
 
 # Run the Guacamole install script (with all exported variables from this current shell)
--E ./2-install-guacamole.sh
+./2-install-guacamole.sh
 if [[ $? -ne 0 ]]; then
-    echo -e "Guacamole install failed. See ${INSTALL_LOG}" 1>&2
+    echo "Guacamole install failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 if [[ "${INSTALL_NGINX}" = false ]]; then
     if [[ "${GUAC_URL_REDIR}" = true ]]; then
@@ -663,7 +663,7 @@ rm cron_1
 
 # Install Nginx reverse proxy front end to Guacamole if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]]; then
-    -E ./3a-install-nginx.sh
+    ./3a-install-nginx.sh
     echo "Nginx install complete" &>>${INSTALL_LOG}
     if [[ ${#all_domains[@]} -gt 0 ]]; then
         for i in ${!all_domains[@]}; do
