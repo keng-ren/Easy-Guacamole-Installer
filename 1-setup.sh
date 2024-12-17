@@ -631,6 +631,8 @@ export OPENID_MAX_NONCE_VALIDITY="${OPENID_MAX_NONCE_VALIDITY}"
 if [[ $? -ne 0 ]]; then
     echo "Guacamole install failed. See ${INSTALL_LOG}" 1>&2
     exit 1
+fi
+
 if [[ "${INSTALL_NGINX}" = false ]]; then
     if [[ "${GUAC_URL_REDIR}" = true ]]; then
         guac_path=""
