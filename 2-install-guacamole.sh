@@ -66,7 +66,7 @@ else
     echo "OK" &>>${INSTALL_LOG}
 fi
 
-if [[ ${SETUP_EMAIL} = "true" ]]; then
+if [[ "${SETUP_EMAIL}" = "true" ]]; then
     # Install Postfix with default settings for smtp email relay
     echo "Installing Postfix MTA for backup email notifications and alerts, see separate SMTP relay configuration script..." &>>${INSTALL_LOG}
     DEBIAN_FRONTEND="noninteractive" apt-get install postfix mailutils -qq -y &>>${INSTALL_LOG} &

@@ -284,7 +284,7 @@ resolved_status=$(systemctl is-active systemd-resolved.service)
 # pre-set values (if provided) will bypass these prompts.
 
 # Ensure SERVER_NAME is consistent with local host entries
-if [[ -z ${SERVER_NAME} ]]; then
+if [[ -z "${SERVER_NAME}" ]]; then
     SERVER_NAME=$HOSTNAME
 else
     # A SERVER_NAME value was derived from a pre-set silent install option.
@@ -298,7 +298,7 @@ fi
 
 DEFAULT_FQDN=""
 # Ensure LOCAL_DOMAIN suffix & localhost entries are consistent
-if [[ -z ${LOCAL_DOMAIN} ]]; then
+if [[ -z "${LOCAL_DOMAIN}" ]]; then
     all_domains=()
     all_ips=()
     while read line; do
@@ -323,17 +323,17 @@ else
 fi
 
 # Default RDP share and host labels will now use the updated $SERVER_NAME value as default (if not otherwise specified in silent setup options).
-if [[ -z ${RDP_SHARE_HOST} ]]; then
+if [[ -z "${RDP_SHARE_HOST}" ]]; then
     RDP_SHARE_HOST=$SERVER_NAME
 fi
 
 # Set MYSQL settings and values
-echo -e "MySQL setup options:"
-if [[ -z ${INSTALL_MYSQL} ]]; then
+echo "MySQL setup options:" &>>${INSTALL_LOG}
+if [[ -z "${INSTALL_MYSQL}" ]]; then
     INSTALL_MYSQL=true
 fi
 
-if [[ -z ${SECURE_MYSQL} ]] && [[ "${INSTALL_MYSQL}" = true ]]; then
+if [[ -z "${SECURE_MYSQL}" ]] && [[ "${INSTALL_MYSQL}" = true ]]; then
     SECURE_MYSQL=false
 fi
 
@@ -369,17 +369,17 @@ elif [[ -z "${GUAC_PWD}" ]]; then
     echo "User password for the MySQL database is required" &>>${INSTALL_LOG}
 fi
 
-if [[ -z ${SETUP_EMAIL} ]]; then
+if [[ -z "${SETUP_EMAIL}" ]]; then
     SETUP_EMAIL=false
 fi
 
 # TODO: Make sure an empty backup email does not cause errors - search for BACKUP_EMAIL in script files
 
-if [[ -z ${INSTALL_TOTP} ]]; then
+if [[ -z "${INSTALL_TOTP}" ]]; then
     INSTALL_TOTP=false
 fi
 
-if [[ -z ${INSTALL_DUO} ]]; then
+if [[ -z "${INSTALL_DUO}" ]]; then
     INSTALL_DUO=false
 fi
 
@@ -417,16 +417,16 @@ fi
 
 
 # Guacamole front end reverse proxy option
-if [[ -z ${INSTALL_NGINX} ]]; then
+if [[ -z "${INSTALL_NGINX}" ]]; then
     INSTALL_NGINX=false
 fi
 
 # Prompt to redirect http://root:8080 to http://root:8080/guacamole if not installing reverse proxy
-if [[ -z ${GUAC_URL_REDIR} ]] && [[ "${INSTALL_NGINX}" = false ]]; then
+if [[ -z "${GUAC_URL_REDIR}" ]] && [[ "${INSTALL_NGINX}" = false ]]; then
     GUAC_URL_REDIR=true
 fi
 
-if [[ ${GUAC_URL_REDIR} = true ]] && [[ "${INSTALL_NGINX}" = true ]]; then
+if [[ "${GUAC_URL_REDIR}" = true ]] && [[ "${INSTALL_NGINX}" = true ]]; then
     GUAC_URL_REDIR=false
 fi
 
@@ -436,7 +436,7 @@ if [[ -z "${PROXY_SITE}" ]] && [[ -n "${DEFAULT_FQDN}" ]] && [[ "${INSTALL_NGINX
 fi
 
 # Self-signed TLS reverse proxy option
-if [[ -z ${SELF_SIGN} ]] && [[ "${INSTALL_NGINX}" = true ]]; then
+if [[ -z "${SELF_SIGN}" ]] && [[ "${INSTALL_NGINX}" = true ]]; then
     SELF_SIGN=false
 fi
 
@@ -446,18 +446,18 @@ if [[ -z "${CERT_DAYS}" ]] && [[ "${SELF_SIGN}" = true ]]; then
 fi
 
 # Let's Encrypt TLS reverse proxy configuration option
-if [[ -z ${LETS_ENCRYPT} ]] && [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
+if [[ -z "${LETS_ENCRYPT}" ]] && [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
     LETS_ENCRYPT=false
 fi
 
 # Let's Encrypt public dns name
-if [[ -z ${LE_DNS_NAME} ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
+if [[ -z "${LE_DNS_NAME}" ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
     echo "Public DNS name is required for Let's Encrypt configuration" &>>${INSTALL_LOG}
     exit 1
 fi
 
 # Let's Encrypt admin email
-if [[ -z ${LE_EMAIL} ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
+if [[ -z "${LE_EMAIL}" ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" = false ]]; then
     echo "Admin email is required for Let's Encrypt configuration" &>>${INSTALL_LOG}
     exit 1
 fi
@@ -716,19 +716,19 @@ if [[ "${INSTALL_NGINX}" = true ]] && [[ "${STEPCA}" = true ]]; then
 fi
 
 # Duo Settings reminder - If Duo is selected you can't login to Guacamole until this extension is fully configured
-if [[ $INSTALL_DUO == "true" ]]; then
+if [[ "${INSTALL_DUO}" == "true" ]]; then
     echo "Reminder: Duo requires extra account specific info configured in the\n/etc/guacamole/guacamole.properties file before you can log in to Guacamole."
     echo "See https://guacamole.apache.org/doc/gug/duo-auth.html"
 fi
 
 # LDAP Settings reminder, LDAP auth is not functional until the config is complete
-if [[ $INSTALL_LDAP == "true" ]]; then
+if [[ "${INSTALL_LDAP}" == "true" ]]; then
     echo "Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
     echo "See https://guacamole.apache.org/doc/gug/ldap-auth.html"
 fi
 
 # OpenID Connect Settings reminder, LDAP auth is not functional until the config is complete
-if [[ $INSTALL_OPENID == "true" ]]; then
+if [[ "${INSTALL_OPENID}" == "true" ]]; then
     echo "Reminder: If you did not specify all of the OpenID Connect parameters, you must configure the /etc/guacamole/guacamole.properties file before OpenID Connect auth will be active." &>>${INSTALL_LOG}
     echo "See https://guacamole.apache.org/doc/gug/openid-auth.html" &>>${INSTALL_LOG}
 fi
@@ -736,7 +736,7 @@ fi
 # Tidy up
 echo
 echo "Removing build-essential package & cleaning up..." &>>${INSTALL_LOG}
-mv $USER_HOME_DIR/1-setup.sh $DOWNLOAD_DIR
+mv ${USER_HOME_DIR}/1-setup.sh ${DOWNLOAD_DIR}
 apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
 apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
