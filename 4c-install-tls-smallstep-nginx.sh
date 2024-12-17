@@ -29,8 +29,8 @@ else
 fi
 
 # Backup the current Nginx config
-echo "Backing up previous Nginx proxy to $DO{WNLOAD_DIR/${PROXY_SITE}-nginx.bak" &>>${INSTALL_LOG}
-cp /etc/nginx/sites-enabled/${PROXY_SITE} ${DOWNLOAD_DIR}/${PROXY_SITE}-nginx.bak
+echo "Backing up previous Nginx proxy to /etc/nginx/conf.d/${PROXY_SITE}.conf.bak" &>>${INSTALL_LOG}
+mv /etc/nginx/conf.d/${PROXY_SITE}.conf /etc/nginx/conf.d/${PROXY_SITE}-ssl.conf.bak
 if [[ $? -ne 0 ]]; then
     echo "Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
@@ -40,7 +40,7 @@ fi
 
 # Configure Nginx to accept the new certificates
 echo "Configuring Nginx proxy for Smallstep TLS and setting up automatic HTTP redirect..." &>>${INSTALL_LOG}
-cat >/etc/nginx/sites-available/${PROXY_SITE} <<EOL
+cat >/etc/nginx/conf.d/${PROXY_SITE}-ssl.conf <<EOL
 server {
     listen 80 default_server;
     #listen [::]:80 default_server;
