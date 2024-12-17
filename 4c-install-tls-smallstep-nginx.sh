@@ -10,7 +10,6 @@
 # It is not intended to run standalone, but as part of a single deployment
 #######################################################################################################################
 
-TOMCAT_VERSION=$(ls /etc/ | grep tomcat)
 # Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
 PROXY_SITE=
 

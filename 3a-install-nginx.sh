@@ -18,8 +18,6 @@ if ! [[ $(id -u) = 0 ]]; then
 fi
 
 echo "Installing Nginx..." &>>${INSTALL_LOG}
-# Below variables are automatically updated by the 1-setup.sh script with the respective values given at install (manually update if blank)
-PROXY_SITE=
 
 # Install Nginx
 apt-get update -qq &> /dev/null && apt-get install nginx -qq -y &>>${INSTALL_LOG} &
