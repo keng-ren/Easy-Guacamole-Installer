@@ -266,7 +266,7 @@ else
     echo "./configure OK" &>>${INSTALL_LOG}
 fi
 
-echo "Run make and build the Guacamole-Server application..."
+echo "Run make and build the Guacamole-Server application..." &>>${INSTALL_LOG}
 make &>>${INSTALL_LOG}
 command_pid=$!
 if [[ $? -ne 0 ]]; then
@@ -276,7 +276,7 @@ else
     echo "make OK" &>>${INSTALL_LOG}
 fi
 
-echo "Install Guacamole-Server..."
+echo "Install Guacamole-Server..." &>>${INSTALL_LOG}
 make install &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Install Failed." &>>${INSTALL_LOG}
@@ -489,7 +489,7 @@ if [[ "${INSTALL_MYSQL}" = true ]]; then
     export MYSQL_PWD=${MYSQL_ROOT_PWD}
 
     # Set the root password without a reliance on debconf.
-    msg= "Set MySQL root password..." &>>${INSTALL_LOG}
+    msg="Set MySQL root password..."
     SQLCODE="
 FLUSH PRIVILEGES;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
