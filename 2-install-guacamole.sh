@@ -5,6 +5,9 @@
 # David Harrop
 # April 2023
 #######################################################################################################################
+# Unattended version
+# It is not intended to run standalone, but as part of a single deployment
+#######################################################################################################################
 
 # Update everything but don't do the annoying prompts during apt installs
 echo "}Updating base Linux OS..." &>>${INSTALL_LOG}

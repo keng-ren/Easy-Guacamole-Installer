@@ -680,13 +680,13 @@ fi
 
 # Apply self signed TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${SELF_SIGN}" = true ]] && [[ "${LETS_ENCRYPT}" != true ]]; then
-    -E ./4a-install-tls-self-signed-nginx.sh ${PROXY_SITE} ${CERT_DAYS} ${DEFAULT_IP} | tee -a ${INSTALL_LOG} # Logged to capture client cert import instructions
+    ./4a-install-tls-self-signed-nginx.sh ${PROXY_SITE} ${CERT_DAYS} ${DEFAULT_IP} | tee -a ${INSTALL_LOG} # Logged to capture client cert import instructions
     echo "Self signed certificate configured for Nginx \nhttps://${PROXY_SITE}  - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***"
 fi
 
 # Apply Let's Encrypt TLS certificates to Nginx reverse proxy if option is selected (with all exported variables from this current shell)
 if [[ "${INSTALL_NGINX}" = true ]] && [[ "${LETS_ENCRYPT}" = true ]] && [[ "${SELF_SIGN}" != true ]]; then
-    -E ./4b-install-tls-letsencrypt-nginx.sh
+    ./4b-install-tls-letsencrypt-nginx.sh
     echo "Let's Encrypt TLS configured for Nginx \nhttps://${LE_DNS_NAME}  - login user/pass: guacadmin/guacadmin\n***Be sure to change the password***"
 fi
 
@@ -706,15 +706,13 @@ fi
 
 # Duo Settings reminder - If Duo is selected you can't login to Guacamole until this extension is fully configured
 if [[ $INSTALL_DUO == "true" ]]; then
-    echo
     echo "Reminder: Duo requires extra account specific info configured in the\n/etc/guacamole/guacamole.properties file before you can log in to Guacamole."
     echo "See https://guacamole.apache.org/doc/gug/duo-auth.html"
 fi
 
 # LDAP Settings reminder, LDAP auth is not functional until the config is complete
 if [[ $INSTALL_LDAP == "true" ]]; then
-    echo
-    echo "${LYELLOW}Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
+    echo "Reminder: LDAP requires that your LDAP directory configuration match the exact format\nadded to the /etc/guacamole/guacamole.properties file before LDAP auth will be active."
     echo "See https://guacamole.apache.org/doc/gug/ldap-auth.html"
 fi
 
