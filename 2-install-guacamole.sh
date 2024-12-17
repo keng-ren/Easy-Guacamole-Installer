@@ -226,7 +226,7 @@ mkdir -p /etc/guacamole/extensions/ &>>${INSTALL_LOG}
 echo "Create service account: ${GUACD_ACCOUNT}" &>>${INSTALL_LOG}
 adduser "${GUACD_ACCOUNT}" --disabled-password --disabled-login --gecos "" > /dev/null 2>&1
 gpasswd -d "${GUACD_ACCOUNT}" users > /dev/null 2>&1
-echo "\nMatch User ${GUACD_ACCOUNT}\n    X11Forwarding no\n    AllowTcpForwarding no\n    PermitTTY no\n    ForceCommand cvs server" | tee -a /etc/ssh/sshd_config > /dev/null 2>&1
+echo -e "\nMatch User ${GUACD_ACCOUNT}\n    X11Forwarding no\n    AllowTcpForwarding no\n    PermitTTY no\n    ForceCommand cvs server" | tee -a /etc/ssh/sshd_config.d/guacd.conf > /dev/null &>>${INSTALL_LOG}
 systemctl restart ssh
 touch "${CRON_DENY_FILE}"
 chmod 644 "${CRON_DENY_FILE}"
