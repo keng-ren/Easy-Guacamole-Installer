@@ -401,22 +401,22 @@ if [[ "${INSTALL_OPENID}" = true ]]; then
     echo "#openid-issuer: ${OPENID_ISSUER}" >> /etc/guacamole/guacamole.properties
     echo "#openid-client-id: ${OPENID_CLIENT_ID}" >> /etc/guacamole/guacamole.properties
     echo "#openid-redirect-uri: ${OPENID_REDIRECT_URI}" >> /etc/guacamole/guacamole.properties
-    if [[ -n ${OPENID_USERNAME_CLAIM_TYPE} ]]; then
+    if [[ -n "${OPENID_USERNAME_CLAIM_TYPE}" ]]; then
         echo "#openid-username-claim-type: ${OPENID_USERNAME_CLAIM_TYPE}" >> /etc/guacamole/guacamole.properties
     fi
-    if [[ -n ${OPENID_GROUPS_CLAIM_TYPE} ]]; then
+    if [[ -n "${OPENID_GROUPS_CLAIM_TYPE}" ]]; then
         echo "#openid-groups-claim-type: groups" >> /etc/guacamole/guacamole.properties
     fi
-    if [[ -n ${OPENID_SCOPE} ]]; then
+    if [[ -n "${OPENID_SCOPE}" ]]; then
         echo "#openid-scope: ${OPENID_SCOPE}”" >> /etc/guacamole/guacamole.properties
     fi
-    if [[ -n ${OPENID_ALLOWED_CLOCK_SKEW} ]]; then
+    if [[ -n "${OPENID_ALLOWED_CLOCK_SKEW}" ]]; then
         echo "#openid-allowed-clock-skew: ${OPENID_ALLOWED_CLOCK_SKEW}" >> /etc/guacamole/guacamole.properties
     fi
-    if [[ -n ${OPENID_MAX_TOKEN_VALIDITY} ]]; then
+    if [[ -n "${OPENID_MAX_TOKEN_VALIDITY}" ]]; then
         echo "#openid-max-token-validity: ${OPENID_MAX_TOKEN_VALIDITY}" >> /etc/guacamole/guacamole.properties
     fi
-    if [[ -n ${OPENID_MAX_NONCE_VALIDITY} ]]; then
+    if [[ -n "${OPENID_MAX_NONCE_VALIDITY}" ]]; then
         echo "#openid-max-nonce-validity: ${OPENID_MAX_NONCE_VALIDITY}" >> /etc/guacamole/guacamole.properties
     fi
     echo "extension-priority: *, openid" >> /etc/guacamole/guacamole.properties
