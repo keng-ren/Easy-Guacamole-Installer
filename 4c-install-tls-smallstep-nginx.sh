@@ -28,28 +28,26 @@ else
     PROXY_IP="${PROXY_IP}:"
 fi
 
-apt-get update -qq &> /dev/null && apt-get install certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG} &
-command_pid=$!
-# spinner $command_pid
+apt-get update -qq &> /dev/null && apt-get install certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "apt-get Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "apt-get OK" &>>${INSTALL_LOG}
 fi
 
 # Backup the current Nginx config
-echo "Backing up previous Nginx proxy to /etc/nginx/conf.d/${PROXY_SITE}.conf.bak" &>>${INSTALL_LOG}
+msg="Back up previous Nginx proxy to /etc/nginx/conf.d/${PROXY_SITE}.conf.bak"
 mv /etc/nginx/conf.d/${PROXY_SITE}.conf /etc/nginx/conf.d/${PROXY_SITE}-ssl.conf.bak
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Configure Nginx to accept the new certificates
-echo "Configuring Nginx proxy for Smallstep TLS and setting up automatic HTTP redirect..." &>>${INSTALL_LOG}
+msg="Configure Nginx proxy for Smallstep TLS and setting up automatic HTTP redirect..."
 cat >/etc/nginx/conf.d/${PROXY_SITE}-ssl.conf <<EOL
 server {
     listen ${PROXY_IP}443 ssl;
@@ -70,14 +68,14 @@ server {
 }
 EOL
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Update general ufw rules to force traffic via reverse proxy. Only Nginx and SSH will be available over the network.
-echo "Updating firewall rules to allow only SSH and tcp 80/443..." &>>${INSTALL_LOG}
+msg= "Update firewall rules to allow only SSH and tcp 80/443..."
 ufw default allow outgoing >/dev/null 2>&1
 ufw default deny incoming >/dev/null 2>&1
 ufw allow OpenSSH >/dev/null 2>&1
@@ -85,10 +83,10 @@ ufw allow 80/tcp >/dev/null 2>&1
 ufw allow 443/tcp >/dev/null 2>&1
 echo "y" | ufw enable >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Reload the new Nginx config so as certbot can read the new config and update it
@@ -96,46 +94,45 @@ systemctl restart nginx
 
 # Run certbot to create and associate certificates with current public IP (must have tcp 80 and 443 open to work!)
 certbot --nginx -n -d ${PROXY_SITE}  --agree-tos --redirect --hsts --server ${STEPCA_SERVER}
-echo
 echo "Smallstep successfully installed, but check for any errors above (DNS & firewall are the usual culprits)." &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "Smallstep Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "Smallstep OK" &>>${INSTALL_LOG}
 fi
 
 # Select a random daily time to schedule a daily check for a Smallstep certificate due to expire in next 30 days.
 # If due to expire within a 30 day window, certbot will attempt to renew automatically each day.
 echo "Scheduling automatic certificate renewals for certificates with < 30 days till expiry.)" &>>${INSTALL_LOG}
 #Dump out the current crontab
-crontab -l >cron_1
+crontab -l > cron_1
 # Remove any previosly added certbot renewal entries
 sed -i '/# certbot renew/d' cron_1
 # Randomly choose a daily update schedule and append this to the cron schedule
 HOUR=$(shuf -i 0-23 -n 1)
 MINUTE=$(shuf -i 0-59 -n 1)
-echo "${MINUTE} ${HOUR} * * * /usr/bin/certbot renew --server ${STEPCA_SERVER} --quiet --pre-hook 'systemctl stop nginx' --post-hook 'systemctl start nginx'" >>cron_1
+echo "${MINUTE} ${HOUR} * * * /usr/bin/certbot renew --server ${STEPCA_SERVER} --quiet --pre-hook 'systemctl stop nginx' --post-hook 'systemctl start nginx'" >> cron_1
 # Overwrite old cron settings and cleanup
 crontab cron_1
 rm cron_1
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "crontab Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "crontab OK" &>>${INSTALL_LOG}
 fi
 
 # Reload everything once again
-echo "Restarting Guacamole & Nginx..." &>>${INSTALL_LOG}
+msg="Restarting Guacamole & Nginx..."
 systemctl restart ${TOMCAT_VERSION}
 systemctl restart guacd
 systemctl restart nginx
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Done

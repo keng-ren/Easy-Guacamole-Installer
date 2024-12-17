@@ -676,15 +676,15 @@ if [[ "${INSTALL_NGINX}" = true ]]; then
         echo "Nginx server configured\nhttp://${PROXY_SITE} - admin login: guacadmin pass: guacadmin\n***Be sure to change the password***" &>>${INSTALL_LOG}
     fi
     # Reload everything
-    echo "Restaring Guacamole & Ngnix..." &>>${INSTALL_LOG}
+    msg="Restart Guacamole & Ngnix..."
     systemctl restart ${TOMCAT_VERSION}
     systemctl restart guacd
     systemctl restart nginx
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
         sleep 1
     fi
 fi
@@ -734,17 +734,15 @@ if [[ "${INSTALL_OPENID}" == "true" ]]; then
 fi
 
 # Tidy up
-echo
-echo "Removing build-essential package & cleaning up..." &>>${INSTALL_LOG}
+msg="Remove build-essential package & cleaning up..."
 mv ${USER_HOME_DIR}/1-setup.sh ${DOWNLOAD_DIR}
 apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
 apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
-    echo
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Done

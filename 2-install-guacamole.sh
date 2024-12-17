@@ -10,36 +10,37 @@
 #######################################################################################################################
 
 # Update everything but don't do the annoying prompts during apt installs
-echo "}Updating base Linux OS..." &>>${INSTALL_LOG}
+msg="Update base Linux OS..."
 export DEBIAN_FRONTEND=noninteractive
 # We already ran apt-get update from the 1st setup script, now we begin to upgrade packages
-apt-get upgrade -qq -y &>>${INSTALL_LOG} &
+apt-get upgrade -qq -y &>>${INSTALL_LOG}
 command_pid=$!
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Pre-seed MySQL root password values for Linux Distro default packages only
 if [[ "${INSTALL_MYSQL}" = true ]] && [[ -z "${MYSQL_VERSION}" ]]; then
+    echo "Pre-seed MySQL root password values" &>>${INSTALL_LOG}
     debconf-set-selections <<<"mysql-server mysql-server/root_password password ${MYSQL_ROOT_PWD}"
     debconf-set-selections <<<"mysql-server mysql-server/root_password_again password ${MYSQL_ROOT_PWD}"
 fi
 
 # Install official MariaDB repo and MariaDB version if a specific version number was provided.
 if [[ -n "${MYSQL_VERSION}" ]]; then
-    echo "Adding the official MariaDB repository and installing version ${MYSQL_VERSION}..." &>>${INSTALL_LOG}
+    msg="Add the official MariaDB repository and installing version ${MYSQL_VERSION}..."
     # Add the Official MariaDB repo.
     apt-get -qq -y install curl gnupg2 &>>${INSTALL_LOG}
     curl -LsS -O ${MARIADB_SOURCE_LINK} &>>${INSTALL_LOG}
     bash mariadb_repo_setup --mariadb-server-version=$MYSQL_VERSION &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
@@ -51,37 +52,38 @@ elif [ -x "$(command -v ${DB_CMD})" ]; then
 else
     MYSQLPKG="${MYSQLCLIENT}"
 fi
+echo "Use MySQL client: ${MYSQLPKG}" &>>${INSTALL_LOG}
 
 # Install Guacamole build dependencies (pwgen needed for duo config only, expect is auto removed after install)
-echo "Installing dependencies required for building Guacamole, this might take a few minutes..."
+msg="Install dependencies required for building Guacamole, this might take a few minutes..."
 apt-get -qq -y install ${MYSQLPKG} ${TOMCAT_VERSION} ${JPEGTURBO} ${LIBPNG} ufw pwgen expect \
     build-essential libcairo2-dev libtool-bin uuid-dev libavcodec-dev libavformat-dev libavutil-dev \
     libswscale-dev freerdp2-dev libpango1.0-dev libssh2-1-dev libtelnet-dev libvncserver-dev libwebsockets-dev \
-    libpulse-dev libssl-dev libvorbis-dev libwebp-dev ghostscript &>>${INSTALL_LOG} &
+    libpulse-dev libssl-dev libvorbis-dev libwebp-dev ghostscript &>>${INSTALL_LOG}
 command_pid=$!
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 if [[ "${SETUP_EMAIL}" = "true" ]]; then
     # Install Postfix with default settings for smtp email relay
-    echo "Installing Postfix MTA for backup email notifications and alerts, see separate SMTP relay configuration script..." &>>${INSTALL_LOG}
-    DEBIAN_FRONTEND="noninteractive" apt-get install postfix mailutils -qq -y &>>${INSTALL_LOG} &
+    msg="Install Postfix MTA for backup email notifications and alerts, see separate SMTP relay configuration script..." &>>${INSTALL_LOG}
+    DEBIAN_FRONTEND="noninteractive" apt-get install postfix mailutils -qq -y &>>${INSTALL_LOG}
     command_pid=$!
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
         systemctl restart postfix
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Download Guacamole Server
-echo "Downloading Guacamole source files..."
+echo "Download Guacamole source files..." &>>${INSTALL_LOG}
 wget -q -O guacamole-server-${GUAC_VERSION}.tar.gz ${GUAC_SOURCE_LINK}/source/guacamole-server-${GUAC_VERSION}.tar.gz &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
     echo "Failed to download guacamole-server-${GUAC_VERSION}.tar.gz" 1>&2
@@ -204,7 +206,7 @@ if [[ "${INSTALL_HISTREC}" = true ]]; then
         echo "Downloaded guacamole-history-recording-storage-${GUAC_VERSION}.tar.gz" &>>${INSTALL_LOG}
     fi
 fi
-echo "Source download complete."
+echo "Source download complete." &>>${INSTALL_LOG}
 
 # Place a pause in script here if you wish to make final tweaks to source code before compiling
 #read -p $'Script paused for editing source before building. Enter to begin the build...\n'
@@ -215,12 +217,13 @@ sed -i -e 's/IDX_DRIVE_NAME, "Guacamole Filesystem"/IDX_DRIVE_NAME, "'"${RDP_SHA
 sed -i -e 's/IDX_PRINTER_NAME, "Guacamole Printer"/IDX_PRINTER_NAME, "'"${RDP_PRINTER_LABEL}"'"/' ${DOWNLOAD_DIR}/guacamole-server-${GUAC_VERSION}/src/protocols/rdp/settings.c
 
 # Make Guacamole directories
-rm -rf /etc/guacamole/lib/
-rm -rf /etc/guacamole/extensions/
-mkdir -p /etc/guacamole/lib/
-mkdir -p /etc/guacamole/extensions/
+rm -rf /etc/guacamole/lib/ &>>${INSTALL_LOG}
+rm -rf /etc/guacamole/extensions/ &>>${INSTALL_LOG}
+mkdir -p /etc/guacamole/lib/ &>>${INSTALL_LOG}
+mkdir -p /etc/guacamole/extensions/ &>>${INSTALL_LOG}
 
 # Create a custom guacd service account and heavily lock it down
+echo "Create service account: ${GUACD_ACCOUNT}" &>>${INSTALL_LOG}
 adduser "${GUACD_ACCOUNT}" --disabled-password --disabled-login --gecos "" > /dev/null 2>&1
 gpasswd -d "${GUACD_ACCOUNT}" users > /dev/null 2>&1
 echo "\nMatch User ${GUACD_ACCOUNT}\n    X11Forwarding no\n    AllowTcpForwarding no\n    PermitTTY no\n    ForceCommand cvs server" | tee -a /etc/ssh/sshd_config > /dev/null 2>&1
@@ -241,15 +244,15 @@ mkdir -p /var/guacamole
 chown "${GUACD_ACCOUNT}":"${GUACD_ACCOUNT}" /var/guacamole
 
 # Make and install guacd (Guacamole-Server)
-echo
-echo "Compiling Guacamole-Server from source with with GCC $(gcc --version | head -n1 | grep -oP '\)\K.*' | awk '{print $1}'), this might take a few minutes..."
+echo "Compile Guacamole-Server from source with with GCC $(gcc --version | head -n1 | grep -oP '\)\K.*' | awk '{print $1}'), this might take a few minutes..." &>>${INSTALL_LOG}
 
 cd guacamole-server-${GUAC_VERSION}/
 # Skip any deprecated software warnings various distros may throw during build
 export CFLAGS="-Wno-error"
 
 # Configure Guacamole Server source
-./configure --with-systemd-dir=/etc/systemd/system &>>${INSTALL_LOG} &
+echo "Start ./configure for guacamole-server" &>>${INSTALL_LOG}
+./configure --with-systemd-dir=/etc/systemd/system &>>${INSTALL_LOG}
 command_pid=$!
 if [[ $? -ne 0 ]]; then
     echo "Failed to configure guacamole-server" &>>${INSTALL_LOG}
@@ -260,26 +263,26 @@ if [[ $? -ne 0 ]]; then
         exit 1
     fi
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "./configure OK" &>>${INSTALL_LOG}
 fi
 
-echo "Running make and building the Guacamole-Server application..."
-make &>>${INSTALL_LOG} &
+echo "Run make and build the Guacamole-Server application..."
+make &>>${INSTALL_LOG}
 command_pid=$!
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "make Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "make OK" &>>${INSTALL_LOG}
 fi
 
-echo "Installing Guacamole-Server..."
+echo "Install Guacamole-Server..."
 make install &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "Install Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "Install OK" &>>${INSTALL_LOG}
 fi
 
 # Update the shared library cache
@@ -287,195 +290,195 @@ ldconfig
 
 # Move Guacamole client and authentication extensions to their correct install locations
 cd ..
-echo "Moving guacamole-${GUAC_VERSION}.war (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+msg="Move guacamole-${GUAC_VERSION}.war (/etc/guacamole/extensions/)..."
 mv -f guacamole-${GUAC_VERSION}.war /etc/guacamole/guacamole.war
 chmod 664 /etc/guacamole/guacamole.war
 # Create a symbolic link for Tomcat
 ln -sf /etc/guacamole/guacamole.war /var/lib/${TOMCAT_VERSION}/webapps/ &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
-echo "Moving guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
+msg="Move guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
 mv -f guacamole-auth-jdbc-${GUAC_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar /etc/guacamole/extensions/
 chmod 664 /etc/guacamole/extensions/guacamole-auth-jdbc-mysql-${GUAC_VERSION}.jar
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Move MySQL connector/j files
-echo "Moving mysql-connector-j-${MYSQLJCON}.jar (/etc/guacamole/lib/mysql-connector-java.jar)..." &>>${INSTALL_LOG}
+msg="Move mysql-connector-j-${MYSQLJCON}.jar (/etc/guacamole/lib/mysql-connector-java.jar)..."
 mv -f mysql-connector-j-${MYSQLJCON}/mysql-connector-j-${MYSQLJCON}.jar /etc/guacamole/lib/mysql-connector-java.jar
 chmod 664 /etc/guacamole/lib/mysql-connector-java.jar
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Configure guacamole.properties file
 rm -f /etc/guacamole/guacamole.properties
 touch /etc/guacamole/guacamole.properties
-echo "mysql-hostname: ${MYSQL_HOST}" >>/etc/guacamole/guacamole.properties
-echo "mysql-port: ${MYSQL_PORT}" >>/etc/guacamole/guacamole.properties
-echo "mysql-database: ${GUAC_DB}" >>/etc/guacamole/guacamole.properties
-echo "mysql-username: ${GUAC_USER}" >>/etc/guacamole/guacamole.properties
-echo "mysql-password: ${GUAC_PWD}" >>/etc/guacamole/guacamole.properties
+echo "mysql-hostname: ${MYSQL_HOST}" >> /etc/guacamole/guacamole.properties
+echo "mysql-port: ${MYSQL_PORT}" >> /etc/guacamole/guacamole.properties
+echo "mysql-database: ${GUAC_DB}" >> /etc/guacamole/guacamole.properties
+echo "mysql-username: ${GUAC_USER}" >> /etc/guacamole/guacamole.properties
+echo "mysql-password: ${GUAC_PWD}" >> /etc/guacamole/guacamole.properties
 
 # Move TOTP files
 if [[ "${INSTALL_TOTP}" = true ]]; then
-    echo "Moving guacamole-auth-totp-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move guacamole-auth-totp-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
     mv -f guacamole-auth-totp-${GUAC_VERSION}/guacamole-auth-totp-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/guacamole-auth-totp-${GUAC_VERSION}.jar
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Move Duo files
 if [[ "${INSTALL_DUO}" = true ]]; then
-    echo "Moving guacamole-auth-duo-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move guacamole-auth-duo-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
     mv -f guacamole-auth-duo-${GUAC_VERSION}/guacamole-auth-duo-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/guacamole-auth-duo-${GUAC_VERSION}.jar
-    echo "#duo-api-hostname: " >>/etc/guacamole/guacamole.properties
-    echo "#duo-integration-key: " >>/etc/guacamole/guacamole.properties
-    echo "#duo-secret-key: " >>/etc/guacamole/guacamole.properties
-    echo "#duo-application-key: " >>/etc/guacamole/guacamole.properties
+    echo "#duo-api-hostname: " >> /etc/guacamole/guacamole.properties
+    echo "#duo-integration-key: " >> /etc/guacamole/guacamole.properties
+    echo "#duo-secret-key: " >> /etc/guacamole/guacamole.properties
+    echo "#duo-application-key: " >> /etc/guacamole/guacamole.properties
     echo "Duo auth is installed, it will need to be configured via guacamole.properties"
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Move LDAP files
 if [[ "${INSTALL_LDAP}" = true ]]; then
-    echo "Moving guacamole-auth-ldap-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move guacamole-auth-ldap-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
     mv -f guacamole-auth-ldap-${GUAC_VERSION}/guacamole-auth-ldap-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/guacamole-auth-ldap-${GUAC_VERSION}.jar
-    echo "#If you have issues with LDAP, check the formatting is exactly as below or you will despair!" >>/etc/guacamole/guacamole.properties
-    echo "#Be extra careful with spaces at line ends or with windows line feeds." >>/etc/guacamole/guacamole.properties
-    echo "#ldap-hostname: dc1.yourdomain.com dc2.yourdomain.com" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-port: 389" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-username-attribute: sAMAccountName" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-encryption-method: none" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-search-bind-dn: ad-account@yourdomain.com" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-search-bind-password: ad-account-password" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-config-base-dn: dc=domain,dc=com" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-user-base-dn: OU=SomeOU,DC=domain,DC=com" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-user-search-filter:(objectClass=user)(!(objectCategory=computer))" >>/etc/guacamole/guacamole.properties
-    echo "#ldap-max-search-results:200" >>/etc/guacamole/guacamole.properties
+    echo "#If you have issues with LDAP, check the formatting is exactly as below or you will despair!" >> /etc/guacamole/guacamole.properties
+    echo "#Be extra careful with spaces at line ends or with windows line feeds." >> /etc/guacamole/guacamole.properties
+    echo "#ldap-hostname: dc1.yourdomain.com dc2.yourdomain.com" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-port: 389" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-username-attribute: sAMAccountName" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-encryption-method: none" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-search-bind-dn: ad-account@yourdomain.com" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-search-bind-password: ad-account-password" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-config-base-dn: dc=domain,dc=com" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-user-base-dn: OU=SomeOU,DC=domain,DC=com" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-user-search-filter:(objectClass=user)(!(objectCategory=computer))" >> /etc/guacamole/guacamole.properties
+    echo "#ldap-max-search-results:200" >> /etc/guacamole/guacamole.properties
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Move OpenID Connect files
 if [[ "${INSTALL_OPENID}" = true ]]; then
     OPENID_JAR="openid/guacamole-auth-sso-openid-${GUAC_VERSION}"
-    echo "Moving ${OPENID_JAR}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move ${OPENID_JAR}.jar (/etc/guacamole/extensions/)..."
     mv -f ${OPENID_JAR}/${OPENID_JAR}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/${OPENID_JAR}.jar
-    echo "#If you have issues with OpenID Connect, check the formatting is exactly as below or you will despair!" >>/etc/guacamole/guacamole.properties
-    echo "#Be extra careful with spaces at line ends or with windows line feeds." >>/etc/guacamole/guacamole.properties
-    echo "#openid-authorization-endpoint: ${OPENID_AUTHORIZATION_ENDPOINT}" >>/etc/guacamole/guacamole.properties
-    echo "#openid-jwks-endpoint: ${OPENID_JWKS_ENDPOINT}" >>/etc/guacamole/guacamole.properties
-    echo "#openid-issuer: ${OPENID_ISSUER}" >>/etc/guacamole/guacamole.properties
-    echo "#openid-client-id: ${OPENID_CLIENT_ID}" >>/etc/guacamole/guacamole.properties
-    echo "#openid-redirect-uri: ${OPENID_REDIRECT_URI}" >>/etc/guacamole/guacamole.properties
+    echo "#If you have issues with OpenID Connect, check the formatting is exactly as below or you will despair!" >> /etc/guacamole/guacamole.properties
+    echo "#Be extra careful with spaces at line ends or with windows line feeds." >> /etc/guacamole/guacamole.properties
+    echo "#openid-authorization-endpoint: ${OPENID_AUTHORIZATION_ENDPOINT}" >> /etc/guacamole/guacamole.properties
+    echo "#openid-jwks-endpoint: ${OPENID_JWKS_ENDPOINT}" >> /etc/guacamole/guacamole.properties
+    echo "#openid-issuer: ${OPENID_ISSUER}" >> /etc/guacamole/guacamole.properties
+    echo "#openid-client-id: ${OPENID_CLIENT_ID}" >> /etc/guacamole/guacamole.properties
+    echo "#openid-redirect-uri: ${OPENID_REDIRECT_URI}" >> /etc/guacamole/guacamole.properties
     if [[ -n ${OPENID_USERNAME_CLAIM_TYPE} ]]
-        echo "#openid-username-claim-type: ${OPENID_USERNAME_CLAIM_TYPE}" >>/etc/guacamole/guacamole.properties
+        echo "#openid-username-claim-type: ${OPENID_USERNAME_CLAIM_TYPE}" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n ${OPENID_GROUPS_CLAIM_TYPE} ]]
-        echo "#openid-groups-claim-type: groups" >>/etc/guacamole/guacamole.properties
+        echo "#openid-groups-claim-type: groups" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n ${OPENID_SCOPE} ]]
-        echo "#openid-scope: ${OPENID_SCOPE}”" >>/etc/guacamole/guacamole.properties
+        echo "#openid-scope: ${OPENID_SCOPE}”" >> /etc/guacamole/guacamole.properties
      fi
     if [[ -n ${OPENID_ALLOWED_CLOCK_SKEW} ]]
-        echo "#openid-allowed-clock-skew: ${OPENID_ALLOWED_CLOCK_SKEW}" >>/etc/guacamole/guacamole.properties
+        echo "#openid-allowed-clock-skew: ${OPENID_ALLOWED_CLOCK_SKEW}" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n ${OPENID_MAX_TOKEN_VALIDITY} ]]
-        echo "#openid-max-token-validity: ${OPENID_MAX_TOKEN_VALIDITY}" >>/etc/guacamole/guacamole.properties
+        echo "#openid-max-token-validity: ${OPENID_MAX_TOKEN_VALIDITY}" >> /etc/guacamole/guacamole.properties
     fi
     if [[ -n ${OPENID_MAX_NONCE_VALIDITY} ]]
-        echo "#openid-max-nonce-validity: ${OPENID_MAX_NONCE_VALIDITY}" >>/etc/guacamole/guacamole.properties
+        echo "#openid-max-nonce-validity: ${OPENID_MAX_NONCE_VALIDITY}" >> /etc/guacamole/guacamole.properties
     fi
-    echo "extension-priority: *, openid" >>/etc/guacamole/guacamole.properties
+    echo "extension-priority: *, openid" >> /etc/guacamole/guacamole.properties
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
         echo
     fi
 fi
 
 # Move quick-connect extension files
 if [[ "${INSTALL_QCONNECT}" = true ]]; then
-    echo "Moving guacamole-auth-quickconnect-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move guacamole-auth-quickconnect-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
     mv -f guacamole-auth-quickconnect-${GUAC_VERSION}/guacamole-auth-quickconnect-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/guacamole-auth-quickconnect-${GUAC_VERSION}.jar
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Move history recording storage extension files
 if [[ "${INSTALL_HISTREC}" = true ]]; then
-    echo "Moving guacamole-history-recording-storage-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..." &>>${INSTALL_LOG}
+    msg="Move guacamole-history-recording-storage-${GUAC_VERSION}.jar (/etc/guacamole/extensions/)..."
     mv -f guacamole-history-recording-storage-${GUAC_VERSION}/guacamole-history-recording-storage-${GUAC_VERSION}.jar /etc/guacamole/extensions/
     chmod 664 /etc/guacamole/extensions/guacamole-history-recording-storage-${GUAC_VERSION}.jar
     #Setup the default recording path
     mkdir -p ${HISTREC_PATH}
     chown ${GUACD_ACCOUNT}:tomcat ${HISTREC_PATH}
     chmod 2750 ${HISTREC_PATH}
-    echo "recording-search-path: ${HISTREC_PATH}" >>/etc/guacamole/guacamole.properties
+    echo "recording-search-path: ${HISTREC_PATH}" >> /etc/guacamole/guacamole.properties
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Apply a branded interface and dark theme. You may delete this file and restart guacd & tomcat for the default console
-echo "Setting the Guacamole console to a (customisable) dark mode themed template..." &>>${INSTALL_LOG}
+msg="Set the Guacamole console to a (customisable) dark mode themed template..."
 mv branding.jar /etc/guacamole/extensions
 chmod 664 /etc/guacamole/extensions/branding.jar
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Restart Tomcat
-echo "Restarting Tomcat service & enable at boot..." &>>${INSTALL_LOG}
+msg="Restart Tomcat service & enable at boot..."
 systemctl restart ${TOMCAT_VERSION}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Set Tomcat to start at boot
@@ -487,16 +490,16 @@ if [[ "${INSTALL_MYSQL}" = true ]]; then
     export MYSQL_PWD=${MYSQL_ROOT_PWD}
 
     # Set the root password without a reliance on debconf.
-    echo "Setting MySQL root password..." &>>${INSTALL_LOG}
+    msg= "Set MySQL root password..." &>>${INSTALL_LOG}
     SQLCODE="
 FLUSH PRIVILEGES;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
     echo ${SQLCODE} | $DB_CMD -u root
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 
    # A simple method to find the correct file containing the default MySQL timezone setting from a potential list of candidates.
@@ -534,11 +537,12 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
             sed -i -e "/^\[${config_section}\]/a default_time_zone = ${timezone}" "${mysqlconfig}"
         fi
     fi
+    msg="MySQL timezone configuration..."
     if [[ $? -ne 0 ]]; then
-        echo "Failed" 1>&2
+        echo "${msg}Failed" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 
     # This below block should stay as "localhost" for all local MySQL install situations and it is driven by the $MYSQL_HOST setting.
@@ -552,7 +556,7 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PWD';"
     fi
 
     # Execute SQL code to create the Guacamole database
-    echo "Creating the Guacamole database..." &>>${INSTALL_LOG}
+    msg="Create the Guacamole database..."
     SQLCODE="
 DROP DATABASE IF EXISTS ${GUAC_DB};
 CREATE DATABASE IF NOT EXISTS ${GUAC_DB};
@@ -561,26 +565,26 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ${GUAC_DB}.* TO '${GUAC_USER}'@'${GUAC_USER
 FLUSH PRIVILEGES;"
     echo ${SQLCODE} | $DB_CMD -u root -D mysql -h ${MYSQL_HOST} -P ${MYSQL_PORT}
     if [[ $? -ne 0 ]]; then
-        echo "Failed" 1>&2
+        echo "${msg}Failed" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 
     # Add Guacamole schema to newly created database
-    echo "Adding database tables..." &>>${INSTALL_LOG}
+    msg="Adding database tables..."
     cat guacamole-auth-jdbc-${GUAC_VERSION}/mysql/schema/*.sql | $DB_CMD -u root -D ${GUAC_DB} -p${MYSQL_ROOT_PWD}
     if [[ $? -ne 0 ]]; then
-        echo "Failed" 1>&2
+        echo "${msg}Failed" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Apply Secure MySQL installation settings
 if [[ "${SECURE_MYSQL}" = true ]] && [[ "${INSTALL_MYSQL}" = true ]]; then
-    echo "Applying mysql_secure_installation settings..." &>>${INSTALL_LOG}
+    msg="Apply mysql_secure_installation settings..."
     SECURE_MYSQL=$(expect -c "
 set timeout 10
 spawn mysql_secure_installation
@@ -602,43 +606,43 @@ expect eof
 ")
     echo "$SECURE_MYSQL" &>>${INSTALL_LOG}
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Restart MySQL service
 if [[ "${INSTALL_MYSQL}" = true ]]; then
-    echo "Restarting MySQL service & enable at boot..." &>>${INSTALL_LOG}
+    msg="Restart MySQL service & enable at boot..."
     # Set MySQl to start at boot
     systemctl enable mysql
     systemctl restart mysql
     if [[ $? -ne 0 ]]; then
-        echo "Failed" 1>&2
+        echo "${msg}Failed" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Create guacd.conf and localhost IP binding.
-echo "Binding guacd to 127.0.0.1 port 4822..." &>>${INSTALL_LOG}
+msg="Bind guacd to 127.0.0.1 port 4822..."
 cat >/etc/guacamole/guacd.conf <<-"EOF"
 [server]
 bind_host = 127.0.0.1
 bind_port = 4822
 EOF
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Ensure guacd is started
-echo "Starting guacd service & enable at boot..." &>>${INSTALL_LOG}
+msg="Start guacd service & enable at boot..."
 # Update the systemd unit file the default daemon to the chosen service account
 sed -i "s/\bdaemon\b/${GUACD_ACCOUNT}/g" /etc/systemd/system/guacd.service
 systemctl daemon-reload
@@ -646,30 +650,30 @@ systemctl enable guacd
 systemctl stop guacd 2>/dev/null
 systemctl start guacd
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Redirect the Tomcat URL to its root to avoid typing the extra /guacamole path (if not using a reverse proxy)
 if [[ "${GUAC_URL_REDIR}" = true ]] && [[ "${INSTALL_NGINX}" = false ]]; then
-    echo "Redirecting the Tomcat http root url to /guacamole..." &>>${INSTALL_LOG}
+    msg= "Redirect the Tomcat http root url to /guacamole..."
     systemctl stop ${TOMCAT_VERSION}
     mv /var/lib/${TOMCAT_VERSION}/webapps/ROOT/index.html /var/lib/${TOMCAT_VERSION}/webapps/ROOT/index.html.old
     touch /var/lib/${TOMCAT_VERSION}/webapps/ROOT/index.jsp
-    echo "<% response.sendRedirect(\"/guacamole\");%>" >>/var/lib/${TOMCAT_VERSION}/webapps/ROOT/index.jsp
+    echo "<% response.sendRedirect(\"/guacamole\");%>" >> /var/lib/${TOMCAT_VERSION}/webapps/ROOT/index.jsp
     systemctl start ${TOMCAT_VERSION}
     if [[ $? -ne 0 ]]; then
-        echo "Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
         exit 1
     else
-        echo "OK" &>>${INSTALL_LOG}
+        echo "${msg}OK" &>>${INSTALL_LOG}
     fi
 fi
 
 # Update Linux firewall
-echo "Updating firewall rules to allow only SSH and tcp 8080..." &>>${INSTALL_LOG}
+msg="Update firewall rules to allow only SSH and tcp 8080..."
 ufw default allow outgoing >/dev/null 2>&1
 ufw default deny incoming >/dev/null 2>&1
 ufw allow OpenSSH >/dev/null 2>&1
@@ -677,14 +681,14 @@ ufw allow 8080/tcp >/dev/null 2>&1
 echo "y" | ufw enable >/dev/null 2>&1
 ufw logging off >/dev/null 2>&1 # Reduce firewall logging noise
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Cleanup
-echo "Cleaning up Guacamole source files..." &>>${INSTALL_LOG}
+msg="Clean up Guacamole source files..."
 rm -rf guacamole-*
 rm -rf mysql-connector-j-*
 rm -rf mariadb_repo_setup
@@ -692,10 +696,10 @@ unset MYSQL_PWD
 apt-get -y remove expect &>>${INSTALL_LOG}
 apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Done

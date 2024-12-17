@@ -28,7 +28,7 @@ fi
 # TODO: Change to /etc/nginx/conf.d/
 # TODO: Set server_name to $PROXY_SITE
 # Configure /etc/nginx/sites-available/(local dns site name)
-echo "Adding site configuration to Nginx for '${PROXY_SITE}'" &>>${INSTALL_LOG}
+msg="Add site configuration to Nginx for '${PROXY_SITE}'"
 cat <<EOF | tee /etc/nginx/conf.d/${PROXY_SITE}.conf
 server {
     listen 80 default_server;
@@ -45,10 +45,10 @@ server {
 }
 EOF
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
     exit 1
 else
-    echo "OK" &>>${INSTALL_LOG}
+    echo "${msg}OK" &>>${INSTALL_LOG}
 fi
 
 # Symlink new reverse proxy site config from sites-available to sites-enabled
