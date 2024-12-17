@@ -551,7 +551,7 @@ fi
 
 sed -i "s|LOCAL_DOMAIN=|LOCAL_DOMAIN='${LOCAL_DOMAIN}'|g" $DOWNLOAD_DIR/add-smtp-relay-o365.sh
 if [[ $? -ne 0 ]]; then
-    echo "Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
+    echo "Failed." &>>${INSTALL_LOG}
     exit 1
 else
     echo "OK" &>>${INSTALL_LOG}
@@ -629,7 +629,7 @@ export OPENID_MAX_NONCE_VALIDITY="${OPENID_MAX_NONCE_VALIDITY}"
 # Run the Guacamole install script (with all exported variables from this current shell)
 ./2-install-guacamole.sh
 if [[ $? -ne 0 ]]; then
-    echo "Guacamole install failed. See ${INSTALL_LOG}" 1>&2
+    echo "Guacamole install failed." &>>${INSTALL_LOG}
     exit 1
 fi
 
@@ -683,7 +683,7 @@ if [[ "${INSTALL_NGINX}" = true ]]; then
     systemctl restart guacd
     systemctl restart nginx
     if [[ $? -ne 0 ]]; then
-        echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+        echo "${msg}Failed." &>>${INSTALL_LOG}
         exit 1
     else
         echo "${msg}OK" &>>${INSTALL_LOG}
@@ -741,7 +741,7 @@ mv ${USER_HOME_DIR}/1-setup.sh ${DOWNLOAD_DIR}
 apt remove -y build-essential &>>${INSTALL_LOG} # Lets not leave build resources installed on a secure system
 apt-get -y autoremove &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed." &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}

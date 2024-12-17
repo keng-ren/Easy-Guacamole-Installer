@@ -13,7 +13,7 @@
 #######################################################################################################################
 
 if ! [[ $(id -u) = 0 ]]; then
-    echo "Please run this script as sudo or root${NC}" 1>&2
+    echo "Please run this script as sudo or root${NC}" &>>${INSTALL_LOG}
     exit 1
 fi
 
@@ -45,7 +45,7 @@ server {
 }
 EOF
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}

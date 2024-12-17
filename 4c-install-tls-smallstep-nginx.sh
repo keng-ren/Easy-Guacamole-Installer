@@ -30,7 +30,7 @@ fi
 
 apt-get update -qq &> /dev/null && apt-get install certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "apt-get Failed. See ${INSTALL_LOG}" 1>&2
+    echo "apt-get Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "apt-get OK" &>>${INSTALL_LOG}
@@ -40,7 +40,7 @@ fi
 msg="Back up previous Nginx proxy to /etc/nginx/conf.d/${PROXY_SITE}.conf.bak"
 mv /etc/nginx/conf.d/${PROXY_SITE}.conf /etc/nginx/conf.d/${PROXY_SITE}-ssl.conf.bak
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
@@ -68,7 +68,7 @@ server {
 }
 EOL
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
@@ -76,14 +76,14 @@ fi
 
 # Update general ufw rules to force traffic via reverse proxy. Only Nginx and SSH will be available over the network.
 msg= "Update firewall rules to allow only SSH and tcp 80/443..."
-ufw default allow outgoing >/dev/null 2>&1
-ufw default deny incoming >/dev/null 2>&1
-ufw allow OpenSSH >/dev/null 2>&1
-ufw allow 80/tcp >/dev/null 2>&1
-ufw allow 443/tcp >/dev/null 2>&1
-echo "y" | ufw enable >/dev/null 2>&1
+ufw default allow outgoing >/dev/null &>>${INSTALL_LOG}
+ufw default deny incoming >/dev/null &>>${INSTALL_LOG}
+ufw allow OpenSSH >/dev/null &>>${INSTALL_LOG}
+ufw allow 80/tcp >/dev/null &>>${INSTALL_LOG}
+ufw allow 443/tcp >/dev/null &>>${INSTALL_LOG}
+echo "y" | ufw enable >/dev/null &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
@@ -96,7 +96,7 @@ systemctl restart nginx
 certbot --nginx -n -d ${PROXY_SITE}  --agree-tos --redirect --hsts --server ${STEPCA_SERVER}
 echo "Smallstep successfully installed, but check for any errors above (DNS & firewall are the usual culprits)." &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "Smallstep Failed. See ${INSTALL_LOG}" 1>&2
+    echo "Smallstep Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "Smallstep OK" &>>${INSTALL_LOG}
@@ -117,7 +117,7 @@ echo "${MINUTE} ${HOUR} * * * /usr/bin/certbot renew --server ${STEPCA_SERVER} -
 crontab cron_1
 rm cron_1
 if [[ $? -ne 0 ]]; then
-    echo "crontab Failed. See ${INSTALL_LOG}" 1>&2
+    echo "crontab Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "crontab OK" &>>${INSTALL_LOG}
@@ -129,7 +129,7 @@ systemctl restart ${TOMCAT_VERSION}
 systemctl restart guacd
 systemctl restart nginx
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}

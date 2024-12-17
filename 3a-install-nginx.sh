@@ -13,7 +13,7 @@
 #######################################################################################################################
 
 if ! [[ $(id -u) = 0 ]]; then
-    echo "Please run this script as sudo or root${NC}" 1>&2
+    echo "Please run this script as sudo or root${NC}" &>>${INSTALL_LOG}
     exit 1
 fi
 
@@ -22,7 +22,7 @@ echo "Installing Nginx..." &>>${INSTALL_LOG}
 # Install Nginx
 apt-get update -qq &> /dev/null && apt-get install nginx -qq -y &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "apt-get Failed. See ${INSTALL_LOG}" 1>&2
+    echo "apt-get Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "apt-get OK" &>>${INSTALL_LOG}
@@ -40,7 +40,7 @@ unlink /etc/nginx/sites-enabled/default
 msg="Configure Apache Tomcat valve for pass through of client IPs to Guacamole logs..."
 sed -i '/pattern="%h %l %u %t &quot;%r&quot; %s %b"/a        \        <!-- Allow host IP to pass through to guacamole.-->\n        <Valve className="org.apache.catalina.valves.RemoteIpValve"\n               internalProxies="127\.0\.0\.1|0:0:0:0:0:0:0:1"\n               remoteIpHeader="x-forwarded-for"\n               remoteIpProxiesHeader="x-forwarded-by"\n               protocolHeader="x-forwarded-proto" />' /etc/$TOMCAT_VERSION/server.xml
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
@@ -51,7 +51,7 @@ sed -i '/client_max_body_size/d' /etc/nginx/nginx.conf  # remove this line if it
 sed -i "/Basic Settings/a \        client_max_body_size 1000000000M;" /etc/nginx/nginx.conf # Add larger file transfer size, should be enough!
 msg="Boost Nginx's 'maximum body size' parameter to allow large file transfers..."
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
@@ -59,14 +59,14 @@ fi
 
 # Update general ufw rules so force traffic via reverse proxy. Only Nginx and SSH will be available over the network.
 msg="Update firewall rules to allow only SSH and tcp 80/443..."
-ufw default allow outgoing >/dev/null 2>&1
-ufw default deny incoming >/dev/null 2>&1
-ufw allow OpenSSH >/dev/null 2>&1
-ufw allow 80/tcp >/dev/null 2>&1
-ufw delete allow 8080/tcp >/dev/null 2>&1
-echo "y" | ufw enable >/dev/null 2>&1
+ufw default allow outgoing >/dev/null &>>${INSTALL_LOG}
+ufw default deny incoming >/dev/null &>>${INSTALL_LOG}
+ufw allow OpenSSH >/dev/null &>>${INSTALL_LOG}
+ufw allow 80/tcp >/dev/null &>>${INSTALL_LOG}
+ufw delete allow 8080/tcp >/dev/null &>>${INSTALL_LOG}
+echo "y" | ufw enable >/dev/null &>>${INSTALL_LOG}
 if [[ $? -ne 0 ]]; then
-    echo "${msg}Failed. See ${INSTALL_LOG}" 1>&2
+    echo "${msg}Failed. See ${INSTALL_LOG}" &>>${INSTALL_LOG}
     exit 1
 else
     echo "${msg}OK" &>>${INSTALL_LOG}
