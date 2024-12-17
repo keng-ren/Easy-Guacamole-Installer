@@ -18,7 +18,7 @@ if [[ -z "${PROXY_SITE}" ]]; then
     exit 1
 fi
 
-apt-get update -qq &> /dev/null && apt-get install nginx certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG} &
+apt-get update -qq &> /dev/null && apt-get install certbot python3-certbot-nginx -qq -y &>>${INSTALL_LOG} &
 command_pid=$!
 # spinner $command_pid
 if [[ $? -ne 0 ]]; then
