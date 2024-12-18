@@ -357,21 +357,24 @@ fi
 
 # MySQL root password. No root pw needed for remote instances.
 if [[ "${INSTALL_MYSQL}" = true ]]; then
-    if [[ -f "${MYSQL_ROOT_PWD_FILE}" ]]; then
-            MYSQL_ROOT_PWD=$(cat "${MYSQL_ROOT_PWD_FILE}")
-            echo "Root password for MySQL deployment pulled from file ${MYSQL_ROOT_PWD_FILE}" &>>${INSTALL_LOG}
-            if [[ -z "${MYSQL_ROOT_PWD}" ]]; then
-                echo "MySQL Root password file was empty" &>>${INSTALL_LOG}
-                exit 1
-            fi
+    file_path="${GUAC_DIR}/${MYSQL_ROOT_PWD_FILE}"
+    if [[ -f "${file_path}" ]]; then
+        MYSQL_ROOT_PWD=$(cat "${file_path}")
+        echo "Root password for MySQL deployment pulled from file ${file_path}" &>>${INSTALL_LOG}
+        if [[ -z "${MYSQL_ROOT_PWD}" ]]; then
+            echo "MySQL Root password file was empty" &>>${INSTALL_LOG}
+            exit 1
+        fi
     elif [[ -z "${MYSQL_ROOT_PWD}" ]]; then
         echo "Root password for MySQL deployment is required" &>>${INSTALL_LOG}
         exit 1
     fi
 fi
+unset file_path
 
-if [[ -f "${GUAC_PWD_FILE}" ]]; then
-    GUAC_PWD=$(cat "${GUAC_PWD_FILE}")
+file_path="${GUAC_DIR}/${GUAC_PWD_FILE}"
+if [[ -f "${file_path}" ]]; then
+    GUAC_PWD=$(cat "${file_path}")
     if [[ -z "${GUAC_PWD}" ]]; then
         echo "MySQL user password file was empty" &>>${INSTALL_LOG}
         exit 1
