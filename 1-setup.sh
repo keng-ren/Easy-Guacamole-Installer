@@ -239,6 +239,7 @@ fi
 
 # Workaround for Debian incompatibilities with later Tomcat versions. (Adds the oldstable repo and downgrades the Tomcat version)
 if [[ ${ID,,} = "debian" && ${VERSION_CODENAME,,} = *"bookworm"* ]] || [[ ${ID,,} = "debian" && ${VERSION_CODENAME,,} = *"trixie"* ]]; then #(checks for upper and lower case)
+    echo "Changing tomcat version for Debian" &>>${INSTALL_LOG}
     echo "deb http://deb.debian.org/debian/ bullseye main" | tee /etc/apt/sources.list.d/bullseye.list &> /dev/null
     apt-get update -qq &> /dev/null
     TOMCAT_VERSION="tomcat9"
@@ -246,11 +247,13 @@ fi
 
 # Workaround for Ubuntu 23.x Tomcat 10 incompatibilities. Downgrades Tomcat to version 9 which is available from the Lunar repo.
 if [[ ${ID,,} = "ubuntu" ]] && [[ ${VERSION_CODENAME,,} = *"lunar"* ]]; then
+    echo "Changing tomcat version for Ubuntu 23.x" &>>${INSTALL_LOG}
     TOMCAT_VERSION="tomcat9"
 fi
 
 # Workaround for Ubuntu 24.x Tomcat 10 incompatibilities. (Adds old Jammy repo and downgrades the Tomcat version)
 if [[ ${ID,,} = "ubuntu" && ${VERSION_CODENAME,,} = *"noble"* ]]; then
+    echo "Changing tomcat version for Ubuntu 24.x" &>>${INSTALL_LOG}
     echo "deb http://archive.ubuntu.com/ubuntu/ jammy universe" | tee /etc/apt/sources.list.d/jammy.list &> /dev/null
     apt-get update -qq &> /dev/null
     TOMCAT_VERSION="tomcat9"
@@ -258,6 +261,7 @@ fi
 
 # Uncomment here to force a specific Tomcat version.
 # TOMCAT_VERSION="tomcat9"
+echo "Using tomcat version: ${TOMCAT_VERSION}" &>>${INSTALL_LOG}
 
 # Workaround for 1.5.4 specific bug, see issue #31. This was fixed in 1.5.5
 if [[ "${ID,,}" = "debian" && "${VERSION_CODENAME,,}" = *"bullseye"* ]] || [[ "${ID,,}" = "ubuntu" && "${VERSION_CODENAME,,}" = *"focal"* ]]; then
