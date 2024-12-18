@@ -601,8 +601,8 @@ FLUSH PRIVILEGES;"
     SQLCODE="
 UPDATE guacamole_user
 SET
-    password_hash = '${guacadmin_hashed_pw}'
-    password_salt = '${GUACADMIN_PW_SALT}'
+    password_hash = x'${guacadmin_hashed_pw}'
+    password_salt = x'${GUACADMIN_PW_SALT}'
     password_date = NOW()
 WHERE entity_id = (SELECT entity_id FROM guacamole_entity WHERE name = 'guacadmin' LIMIT 1);"
     echo ${SQLCODE} | $DB_CMD -u root -D mysql -h ${MYSQL_HOST} -P ${MYSQL_PORT}
