@@ -29,7 +29,7 @@ fi
 # TODO: Set server_name to $PROXY_SITE
 # Configure /etc/nginx/sites-available/(local dns site name)
 msg="Add site configuration to Nginx for '${PROXY_SITE}'"
-cat <<EOF | tee /etc/nginx/conf.d/${PROXY_SITE}.conf
+cat <<EOF | tee /etc/nginx/conf.d/${PROXY_SITE}.conf &>>${INSTALL_LOG}
 server {
     listen 80 default_server;
     server_name ${PROXY_SITE};
