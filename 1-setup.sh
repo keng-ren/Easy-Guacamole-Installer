@@ -89,6 +89,10 @@ MYSQL_ROOT_PWD_FILE=""          # Path to file containing MySQL root password
 GUAC_PWD=""                     # Manadatory entry here or at script prompt
 GUAC_PWD_FILE=""                # Path to file containing the MySQL user password
 GUACD_ACCOUNT="guacd"           # Service account guacd will run under (and will be very heavily locked down)
+GUACADMIN_PW=""                 # Password for the default guacadmin user account
+GUACADMIN_PW_FILE=""            # Path to the file containing the password for the default guacadmin user account
+GUACADMIN_PW_SALT=""            # The salt for the password for the default guacadmin user account
+GUACADMIN_PW_SALT_FILE=""       # Path to the file containing the password salt
 DB_TZ=$(cat /etc/timezone)      # Blank "" defaults to UTC, for local timezone: $(cat /etc/timezone)
 INSTALL_TOTP="false"            # Add TOTP MFA extension (true/false), can't be installed simultaneously with DUO)
 INSTALL_DUO="false"             # Add DUO MFA extension (true/false, can't be installed simultaneously with TOTP)
@@ -392,6 +396,30 @@ elif [[ -z "${GUAC_PWD}" ]]; then
     echo "User password for the MySQL database is required" &>>${INSTALL_LOG}
     exit 1
 fi
+unset file_path
+
+file_path="${GUAC_DIR}/${GUACADMIN_PW_FILE}"
+if [[ -f "${file_path}" ]]; then
+    GUACADMIN_PW=$(cat "${file_path}")
+    if [[ -z "${GUACADMIN_PW}" ]]; then
+        echo "guacadmin password file was empty" &>>${INSTALL_LOG}
+        exit 1
+    fi
+elif [[ -z "${GUACADMIN_PW}" ]]; then
+    echo "guacadmin password not provided, will default to 'guacadmin'" &>>${INSTALL_LOG}
+fi
+unset file_path
+
+file_path="${GUAC_DIR}/${GUACADMIN_PW_SALT_FILE}"
+if [[ -f "${file_path}" ]]; then
+    GUACADMIN_PW_SALT=$(cat "${file_path}")
+    if [[ -z "${GUACADMIN_PW_SALT}" ]]; then
+        echo "guacadmin password salt file was empty" &>>${INSTALL_LOG}
+        exit 1
+    fi
+elif [[ -z "${GUACADMIN_PW_SALT}" ]]; then
+    echo "guacadmin password salt not provided, will be randomly generated" &>>${INSTALL_LOG}
+fi
 
 if [[ -z "${SETUP_EMAIL}" ]]; then
     SETUP_EMAIL=false
@@ -609,6 +637,8 @@ export GUAC_USER=$GUAC_USER
 export MYSQL_ROOT_PWD="${MYSQL_ROOT_PWD}"
 export GUAC_PWD="${GUAC_PWD}"
 export GUACD_ACCOUNT=$GUACD_ACCOUNT
+export GUACADMIN_PW="${GUACADMIN_PW}"
+export GUACADMIN_PW_SALT="${GUACADMIN_PW_SALT}"
 export DB_TZ="${DB_TZ}"
 export INSTALL_TOTP=$INSTALL_TOTP
 export INSTALL_DUO=$INSTALL_DUO

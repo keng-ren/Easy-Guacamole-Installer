@@ -579,6 +579,39 @@ FLUSH PRIVILEGES;"
     else
         echo "${msg}OK" &>>${INSTALL_LOG}
     fi
+
+    msg="Installing xxd for setting guacadmin password..."
+    apt-get -qq -y install xxd &>>${INSTALL_LOG}
+    if [[ $? -ne 0 ]]; then
+        echo "${msg}Failed." &>>${INSTALL_LOG}
+        exit 1
+    else
+        echo "${msg}OK" &>>${INSTALL_LOG}
+    fi
+
+    msg="Change guacadmin password..."
+    if [[ ${#GUACADMIN_PW_SALT} -gt 32 ]]; then
+        echo "The guacadmin password salt was too long, will generate new salt" &>>${INSTALL_LOG}
+        GUACADMIN_PW_SALT=""
+    fi
+    if [[ -z "${GUACADMIN_PW_SALT}" ]]; then
+        GUACADMIN_PW_SALT=$(openssl rand -hex 32 | tr '[:lower:]' '[:upper:]')
+    fi
+    guacadmin_hashed_pw=$(echo -n "${GUACADMIN_PW}${GUACADMIN_PW_SALT}" | sha256sum | tr '[:lower:]' '[:upper:]')
+    SQLCODE="
+UPDATE guacamole_user
+SET
+    password_hash = '${guacadmin_hashed_pw}'
+    password_salt = '${GUACADMIN_PW_SALT}'
+    password_date = NOW()
+WHERE entity_id = (SELECT entity_id FROM guacamole_entity WHERE name = 'guacadmin' LIMIT 1);"
+    echo ${SQLCODE} | $DB_CMD -u root -D mysql -h ${MYSQL_HOST} -P ${MYSQL_PORT}
+    if [[ $? -ne 0 ]]; then
+        echo "${msg}Failed" &>>${INSTALL_LOG}
+        exit 1
+    else
+        echo "${msg}OK" &>>${INSTALL_LOG}
+    fi
 fi
 
 # Apply Secure MySQL installation settings
