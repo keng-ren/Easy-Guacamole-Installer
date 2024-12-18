@@ -300,6 +300,15 @@ fi
 DEFAULT_FQDN=""
 # Ensure LOCAL_DOMAIN suffix & localhost entries are consistent
 if [[ -z "${LOCAL_DOMAIN}" ]]; then
+    msg="Domain suffix(es) will be determined, installing dig..."
+    apt-get -qq -y install dig &>>${INSTALL_LOG}
+    if [[ $? -ne 0 ]]; then
+        echo "${msg}Failed." &>>${INSTALL_LOG}
+        exit 1
+    else
+        echo "${msg}OK" &>>${INSTALL_LOG}
+    fi
+
     all_domains=()
     all_ips=()
     while read line; do
