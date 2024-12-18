@@ -157,6 +157,7 @@ fi
 
 # Script branding header
 echo "Guacamole ${GUAC_VERSION} Auto Installer - Powered by Itiligent - Unattended edition by KenG" &>>${INSTALL_LOG}
+echo "The interactive version of this script is found at https://raw.githubusercontent.com/keng-ren/Easy-Guacamole-Installer/main/1-setup.sh" &>>${INSTALL_LOG}
 
 # Download the suite of install scripts from GitHub
 cd $DOWNLOAD_DIR
