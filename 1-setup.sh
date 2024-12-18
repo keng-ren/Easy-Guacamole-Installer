@@ -363,6 +363,7 @@ if [[ "${INSTALL_MYSQL}" = true ]]; then
             if [[ -z "${MYSQL_ROOT_PWD}" ]]; then
                 echo "MySQL Root password file was empty" &>>${INSTALL_LOG}
                 exit 1
+            fi
     elif [[ -z "${MYSQL_ROOT_PWD}" ]]; then
         echo "Root password for MySQL deployment is required" &>>${INSTALL_LOG}
         exit 1
@@ -374,6 +375,7 @@ if [[ -f "${GUAC_PWD_FILE}" ]]; then
     if [[ -z "${GUAC_PWD}" ]]; then
         echo "MySQL user password file was empty" &>>${INSTALL_LOG}
         exit 1
+    fi
 elif [[ -z "${GUAC_PWD}" ]]; then
     echo "User password for the MySQL database is required" &>>${INSTALL_LOG}
     exit 1
